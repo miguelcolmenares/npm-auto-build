@@ -1,0 +1,15 @@
+FROM node:20-alpine
+
+# Install git and bash for committing changes
+RUN apk add --no-cache git bash
+
+WORKDIR /github/workspace
+
+# Copy the action files
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Set bash as default shell
+RUN ln -sf /bin/bash /bin/sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

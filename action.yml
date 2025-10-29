@@ -1,0 +1,45 @@
+name: "NPM Auto Build"
+description: "Run build command from your package.json"
+
+author: "Miguel Colmenares <me@miguelcolmenares.com>"
+
+inputs:
+  command:
+    description: "NPM script to build your package. Default to build"
+    required: false
+    default: "build"
+  directory:
+    description: "Directory that contains the package.json file that you want to build"
+    required: false
+    default: "."
+  commit-message:
+    description: "Commit message for the build changes"
+    required: false
+    default: "chore: update build files"
+  build-dir:
+    description: "Directory where build files are generated (relative to project root)"
+    required: false
+    default: "dist"
+  github-token:
+    description: "GitHub token for committing changes"
+    required: true
+  git-user-name:
+    description: "Git user name for commits"
+    required: false
+    default: "github-actions[bot]"
+  git-user-email:
+    description: "Git user email for commits"
+    required: false
+    default: "github-actions[bot]@users.noreply.github.com"
+  node-version:
+    description: "Node.js version to use for building"
+    required: false
+    default: "18"
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
+
+branding:
+  icon: "box"
+  color: "green"

@@ -1,0 +1,14 @@
+version: '3.3'
+services:
+    action:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            labels:
+                com.github.actions.name: "NPM auto build"
+                com.github.actions.description: "Build an npm package"
+                com.github.actions.icon: "box"
+                com.github.actions.color: "green"
+                repository: "http://github.com/miguelcolmenares/npm-auto-build"
+                homepage: "http://github.com/marketplace/miguelcolmenares"
+                maintainer: "me@miguelcolmenares.com"

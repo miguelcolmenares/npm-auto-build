@@ -1,0 +1,26 @@
+name: 'Test NPM Auto Build Action'
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Test Action
+        uses: ./
+        with:
+          command: 'test'
+          directory: '.'
+          build-dir: 'test-output'
+          commit-message: 'test: update test build'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
