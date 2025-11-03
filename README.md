@@ -44,7 +44,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Auto Build & Commit
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v1  # Always latest v1.x
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
