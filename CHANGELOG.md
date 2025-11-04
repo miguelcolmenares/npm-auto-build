@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-11-04
+
+### Added
+- **Protected branch support**: New `create-pr` parameter for handling protected branches
+- **Automatic PR creation**: Creates pull requests when direct push fails due to branch protection
+- **GitHub CLI integration**: Installs and configures GitHub CLI for seamless PR creation
+- **Enhanced error handling**: Detailed error messages with solutions for protected branch issues
+
+### Features
+- **New Input**: `create-pr: true` - Creates PR instead of direct push
+- **Smart detection**: Automatically detects protected branch push failures
+- **Unique branch naming**: Creates timestamped branches for each build
+- **Comprehensive logging**: Shows PR creation process and branch information
+
 ## [2.0.2] - 2025-11-04
 
 ### Fixed
