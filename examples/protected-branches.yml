@@ -1,4 +1,4 @@
-# Example for protected branches using Personal Access Token
+# Example for protected branches with two different approaches
 name: Protected Branch Build
 
 on:
@@ -6,8 +6,36 @@ on:
     branches: [ main, production ]
 
 jobs:
-  protected-build:
+  # Option 1: Create Pull Request (Recommended)
+  build-with-pr:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Create PR
+        uses: miguelcolmenares/npm-auto-build@v2
+        with:
+          command: 'build:production'
+          build-dir: 'dist'
+          commit-message: '🔄 Automated build update'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          create-pr: true  # Creates PR instead of direct push
+          git-user-name: 'Build Bot'
+          git-user-email: 'bot@mycompany.com'
+          node-version: '18'
+
+  # Option 2: Direct Push with Personal Access Token
+  build-with-pat:
+    runs-on: ubuntu-latest
+    if: false  # Disabled by default, enable only if needed
     
     permissions:
       contents: write
@@ -33,7 +61,7 @@ jobs:
 
   # Optional: Create a release after successful build
   create-release:
-    needs: protected-build
+    needs: build-with-pr  # Updated to reference the correct job name
     if: github.ref == 'refs/heads/production'
     runs-on: ubuntu-latest
     

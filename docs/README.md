@@ -55,12 +55,26 @@ For projects with multiple packages:
 Best practices for integrating with different CI/CD systems:
 
 ```yml
-# GitHub Actions
+# Standard workflow - Direct push
 permissions:
   contents: write
 
-# GitLab CI
-# Use a Personal Access Token with write permissions
+# Protected branches - Pull request creation
+permissions:
+  contents: write
+  pull-requests: write
+```
+
+### Protected Branches
+
+For repositories with branch protection rules, use the pull request approach:
+
+```yml
+- name: Build and Create PR
+  uses: miguelcolmenares/npm-auto-build@v2
+  with:
+    create-pr: true  # Creates PR instead of direct push
+    github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## 🛠️ Technical Details
@@ -94,6 +108,8 @@ The action automatically detects common build directories:
 - No sensitive data is logged or exposed
 - Runs in isolated Docker container
 - Follows GitHub Actions security best practices
+- **Pull Request Mode**: `create-pr: true` works with standard GitHub permissions, no PAT required
+- **Protected Branches**: Automatically handles branch protection by creating reviewable PRs
 
 ## 🐛 Common Issues and Solutions
 

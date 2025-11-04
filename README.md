@@ -70,6 +70,16 @@ jobs:
     github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+### For Protected Branches
+
+```yml
+- name: Auto Build & Create PR
+  uses: miguelcolmenares/npm-auto-build@v2
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    create-pr: true  # Creates PR instead of direct push
+```
+
 ### Build-Only Usage (Testing/CI)
 
 ```yml
@@ -129,8 +139,39 @@ jobs:
 
 ### Protected Branches Setup
 
+#### Option 1: Create Pull Request (Recommended)
+
 ```yml
-name: Protected Branch Build
+name: Protected Branch Build with PR
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Auto Build & Create PR
+        uses: miguelcolmenares/npm-auto-build@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          create-pr: true  # Creates PR instead of direct push
+```
+
+#### Option 2: Direct Push with PAT
+
+```yml
+name: Protected Branch Build with PAT
 on:
   push:
     branches: [ main ]
@@ -167,6 +208,7 @@ jobs:
 | `git-user-email` | Git user email for commits | No | `github-actions[bot]@users.noreply.github.com` |
 | `node-version` | Node.js version to use | No | `18` |
 | `build-only` | Only build without committing changes | No | `false` |
+| `create-pr` | Create pull request instead of direct push | No | `false` |
 
 > **\*** Required only when committing changes. Not needed in `build-only` mode.
 

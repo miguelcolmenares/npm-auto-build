@@ -21,9 +21,10 @@ This directory contains real-world examples of how to use the NPM Auto Build Git
 - ⚡ **Efficient**: Only builds what's needed
 
 ### [`protected-branches.yml`](./protected-branches.yml)
-**Protected Branches Setup** - Shows how to work with branch protection rules and create releases.
+**Protected Branches Setup** - Shows two approaches for working with branch protection rules.
 
-- 🔒 **Personal Access Token**: Uses PAT for protected branches
+- 🔄 **Pull Request Mode**: Uses `create-pr: true` to create PRs instead of direct push (Recommended)
+- 🔒 **Personal Access Token**: Alternative approach using PAT for direct push to protected branches
 - 🤖 **Custom Bot Identity**: Sets up branded bot user for commits
 - 🚀 **Auto Releases**: Creates releases after successful builds
 - 🎯 **Production Ready**: Designed for production environments
