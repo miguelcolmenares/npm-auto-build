@@ -38,6 +38,8 @@ log_info "Starting NPM Auto Build Action"
 log_info "Project directory: $PROJECT_DIR"
 log_info "Build command: npm run $BUILD_COMMAND"
 log_info "Build directory: $BUILD_DIR"
+log_info "Create PR mode: $CREATE_PR"
+log_info "Build only mode: $BUILD_ONLY"
 
 # Check if project directory exists
 if [ ! -d "$PROJECT_DIR" ]; then
@@ -195,6 +197,9 @@ log_info "Committing changes..."
 git commit -m "$COMMIT_MESSAGE"
 
 # Push changes
+log_info "Debug: CREATE_PR value is: '$CREATE_PR'"
+log_info "Debug: Comparing CREATE_PR with 'true': $([ "$CREATE_PR" = "true" ] && echo "MATCH" || echo "NO MATCH")"
+
 if [ "$CREATE_PR" = "true" ]; then
     # Push the new branch
     log_info "Pushing branch '$BRANCH_NAME' to repository..."
