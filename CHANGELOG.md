@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2025-11-04
+
+### Fixed
+- **CREATE_PR parameter debugging**: Added comprehensive debug logging to identify why `create-pr: true` parameter wasn't working properly
+- **Enhanced troubleshooting**: Added variable state logging and comparison result logging for better issue diagnosis
+- **Protected branch debugging**: Improved debugging capabilities for protected branch configuration issues
+
+### Debug Features
+- Added debug output showing `CREATE_PR` parameter value at startup
+- Added comparison result logging before push/PR decision
+- Enhanced error diagnostics for protected branch scenarios
+
 ## [2.1.0] - 2025-11-04
 
 ### Added
