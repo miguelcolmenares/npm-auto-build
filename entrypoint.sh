@@ -21,17 +21,17 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Set default values
+# Set default values with fallbacks
 WORKSPACE_DIR="/github/workspace"
-PROJECT_DIR="$WORKSPACE_DIR/$INPUT_DIRECTORY"
-BUILD_COMMAND="$INPUT_COMMAND"
-COMMIT_MESSAGE="$INPUT_COMMIT_MESSAGE"
-BUILD_DIR="$INPUT_BUILD_DIR"
+PROJECT_DIR="$WORKSPACE_DIR/${INPUT_DIRECTORY:-"."}"
+BUILD_COMMAND="${INPUT_COMMAND:-"build"}"
+COMMIT_MESSAGE="${INPUT_COMMIT_MESSAGE:-"chore: update build files"}"
+BUILD_DIR="${INPUT_BUILD_DIR:-"dist"}"
 GITHUB_TOKEN="$INPUT_GITHUB_TOKEN"
-GIT_USER_NAME="$INPUT_GIT_USER_NAME"
-GIT_USER_EMAIL="$INPUT_GIT_USER_EMAIL"
-NODE_VERSION="$INPUT_NODE_VERSION"
-BUILD_ONLY="$INPUT_BUILD_ONLY"
+GIT_USER_NAME="${INPUT_GIT_USER_NAME:-"github-actions[bot]"}"
+GIT_USER_EMAIL="${INPUT_GIT_USER_EMAIL:-"github-actions[bot]@users.noreply.github.com"}"
+NODE_VERSION="${INPUT_NODE_VERSION:-"20"}"
+BUILD_ONLY="${INPUT_BUILD_ONLY:-"false"}"
 
 log_info "Starting NPM Auto Build Action"
 log_info "Project directory: $PROJECT_DIR"
@@ -107,6 +107,16 @@ fi
 
 # Configure Git
 log_info "Configuring Git..."
+log_info "Git user name: '$GIT_USER_NAME'"
+log_info "Git user email: '$GIT_USER_EMAIL'"
+
+if [ -z "$GIT_USER_NAME" ] || [ -z "$GIT_USER_EMAIL" ]; then
+    log_error "Git user name or email is empty!"
+    log_error "GIT_USER_NAME: '$GIT_USER_NAME'"
+    log_error "GIT_USER_EMAIL: '$GIT_USER_EMAIL'"
+    exit 1
+fi
+
 git config --global --add safe.directory "$WORKSPACE_DIR"
 git config user.name "$GIT_USER_NAME"
 git config user.email "$GIT_USER_EMAIL"
