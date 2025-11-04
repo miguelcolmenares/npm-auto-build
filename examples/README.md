@@ -34,7 +34,7 @@ This directory contains real-world examples of how to use the NPM Auto Build Git
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Auto Build React App
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           command: 'build'
           build-dir: 'build'
@@ -65,7 +65,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Library
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           command: 'build'
           build-dir: 'lib'
@@ -94,7 +94,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Frontend Package
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           directory: './packages/frontend'
           command: 'build:prod'
@@ -115,7 +115,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Admin Package
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           directory: './packages/admin'
           command: 'build:prod'

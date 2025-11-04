@@ -29,7 +29,7 @@ The action supports various Node.js environments and package managers:
 
 ```yml
 - name: Build with specific Node version
-  uses: miguelcolmenares/npm-auto-build@v1
+  uses: miguelcolmenares/npm-auto-build@v2
   with:
     node-version: '20'
     command: 'build:prod'
@@ -42,7 +42,7 @@ For projects with multiple packages:
 
 ```yml
 - name: Build Frontend
-  uses: miguelcolmenares/npm-auto-build@v1
+  uses: miguelcolmenares/npm-auto-build@v2
   with:
     directory: './packages/frontend'
     build-dir: 'dist'

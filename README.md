@@ -24,13 +24,15 @@ This GitHub Action runs your npm build script and automatically commits the gene
 ### Basic Usage (Build + Commit)
 
 ```yml
-name: Auto Build
+name: Auto Build and Deploy
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     
     # 🔑 Required permissions for committing build files
@@ -40,13 +42,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Auto Build & Commit
-        uses: miguelcolmenares/npm-auto-build@v1  # Always latest v1.x
+      # Test build on PRs (no commit)
+      - name: Test Build (PR only)
+        if: github.event_name == 'pull_request'
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          build-only: true
+
+      # Build and commit on main branch  
+      - name: Build and Deploy (Main)
+        if: github.event_name == 'push'
+        uses: miguelcolmenares/npm-auto-build@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          build-dir: dist
+          commit-message: "chore: update build files [skip ci]"
+```
+
+### Simple One-Step Build
+
+```yml
+- name: Auto Build & Commit
+  uses: miguelcolmenares/npm-auto-build@v2
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### Build-Only Usage (Testing/CI)
@@ -67,7 +88,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Test Build
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           build-only: true  # Only build, don't commit
 ```
@@ -94,7 +115,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Advanced Auto Build
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           command: 'build:prod'
           directory: './frontend'
@@ -128,7 +149,7 @@ jobs:
           token: ${{ secrets.PAT }}  # Personal Access Token for protected branches
 
       - name: Auto Build
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           github-token: ${{ secrets.PAT }}  # Same PAT for pushing
 ```
@@ -208,7 +229,7 @@ jobs:
       - uses: actions/checkout@v5
       
       - name: Test Build
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           build-only: true  # Only test, don't commit
           command: 'build:prod'
@@ -235,7 +256,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Build for GitHub Pages
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           command: 'build'
           build-dir: 'dist'
@@ -263,7 +284,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Build TypeScript Library
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           command: 'build:lib'
           build-dir: 'lib'
@@ -303,7 +324,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Build ${{ matrix.package.name }}
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           directory: ${{ matrix.package.dir }}
           build-dir: ${{ matrix.package.build-dir }}
@@ -331,7 +352,7 @@ jobs:
           token: ${{ secrets.BOT_PAT }}  # Custom bot token
       
       - name: Production Build
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           command: 'build:production'
           build-dir: 'dist'
@@ -451,21 +472,22 @@ updates:
 ```
 
 **What Dependabot will detect:**
-- ✅ **This action**: `miguelcolmenares/npm-auto-build@v1.0.x` → `@v1.1.0`
-- ✅ **Checkout updates**: `actions/checkout@v4` → `@v5`
+- ✅ **This action**: `miguelcolmenares/npm-auto-build@v2.0.x` → `@v2.x.x`
+- ✅ **Checkout updates**: `actions/checkout@v4` → `@v5` 
 - ✅ **Other action dependencies**
 
-### Migration from v1.0.x to v1.1.0
+### ⚠️ Important: Migration to v2.0.0
 
-#### Using Dependabot (Recommended)
-1. Add GitHub Actions to `dependabot.yml` (see above)
-2. Accept the automated PR when it appears
-3. Verify your workflows still pass
+**v1.x versions contained critical Docker issues and are non-functional.**
 
-#### Manual Update
-1. Update action version: `@v1.0.x` → `@v1.1.0`
-2. Update checkout: `@v4` → `@v5` (recommended)
-3. Test your workflows
+#### For New Users
+- Use `@v2` (auto-updating) or `@v2.0.0` (specific version)
+- Use `actions/checkout@v5` (recommended)
+
+#### Migrating from v1.x
+1. **Replace version**: `@v1` → `@v2` (or `@v2.0.0`)
+2. **Update checkout**: `@v4` → `@v5` (recommended)  
+3. **Test thoroughly**: v2.0.0 is a complete rewrite
 
 #### Self-hosted Runners
 If using checkout@v5, ensure your Actions Runner is v2.327.1 or higher.

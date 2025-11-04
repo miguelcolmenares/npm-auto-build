@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Test Build (No Commit)
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           build-only: true  # Only test the build
           command: 'build:prod'
@@ -44,7 +44,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Commit
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           command: 'build:prod'
           build-dir: 'dist'

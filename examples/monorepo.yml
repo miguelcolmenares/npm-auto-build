@@ -35,7 +35,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build ${{ matrix.package.name }}
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           directory: ${{ matrix.package.directory }}
           command: ${{ matrix.package.build-command }}

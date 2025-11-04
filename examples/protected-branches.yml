@@ -20,7 +20,7 @@ jobs:
           token: ${{ secrets.PAT }}
 
       - name: Build and Commit to Protected Branch
-        uses: miguelcolmenares/npm-auto-build@v1
+        uses: miguelcolmenares/npm-auto-build@v2
         with:
           command: 'build:production'
           build-dir: 'dist'
@@ -42,7 +42,7 @@ jobs:
     
     steps:
       - name: Create Release
-        uses: actions/create-release@v1
+        uses: actions/create-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

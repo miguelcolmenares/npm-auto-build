@@ -118,20 +118,49 @@ fi
 
 # Check if there are changes to commit
 log_info "Checking for changes in build directory..."
-if git diff --quiet HEAD -- "$BUILD_DIR" 2>/dev/null; then
-    log_info "No changes detected in build directory. Nothing to commit."
-    exit 0
+log_info "Build directory contents:"
+ls -la "$BUILD_DIR" || log_warn "Could not list build directory contents"
+
+# Show git status for debugging
+log_info "Git status before adding files:"
+git status --porcelain
+
+# Check if build directory is in .gitignore
+if git check-ignore "$BUILD_DIR" >/dev/null 2>&1; then
+    log_info "Build directory '$BUILD_DIR' is in .gitignore - will force add files"
+    FORCE_ADD=true
+else
+    FORCE_ADD=false
 fi
 
-# Add build files to git
+# Try to add build files first (with --force if needed)
 log_info "Adding build files to Git..."
-git add "$BUILD_DIR"
+if [ "$FORCE_ADD" = true ]; then
+    git add "$BUILD_DIR" --force
+    log_info "Used --force to add ignored files"
+else
+    git add "$BUILD_DIR"
+fi
+
+# Show git status after adding
+log_info "Git status after adding build files:"
+git status --porcelain
 
 # Check if there are staged changes
 if git diff --cached --quiet; then
-    log_info "No staged changes found. Nothing to commit."
+    log_info "No staged changes found after adding build files."
+    
+    # Check if files exist but are identical
+    if [ -d "$BUILD_DIR" ] && [ "$(find "$BUILD_DIR" -type f | wc -l)" -gt 0 ]; then
+        log_info "Build files exist but are identical to repository version."
+        log_info "No changes to commit."
+    else
+        log_warn "Build directory is empty or contains no files."
+    fi
     exit 0
 fi
+
+log_info "Found staged changes. Proceeding to commit..."
 
 # Commit changes
 log_info "Committing changes..."
@@ -139,7 +168,15 @@ git commit -m "$COMMIT_MESSAGE"
 
 # Push changes
 log_info "Pushing changes to repository..."
-git push
-
-log_info "✅ Build completed and committed successfully!"
-log_info "Build directory '$BUILD_DIR' has been updated and pushed to the repository."
+if git push; then
+    log_info "✅ Build completed and committed successfully!"
+    log_info "Build directory '$BUILD_DIR' has been updated and pushed to the repository."
+    
+    # Show final commit info
+    log_info "Latest commit:"
+    git log --oneline -1
+else
+    log_error "Failed to push changes to repository!"
+    log_error "Check your GitHub token permissions and branch protection rules."
+    exit 1
+fi
