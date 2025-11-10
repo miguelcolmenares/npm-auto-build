@@ -467,6 +467,33 @@ This action is fully compatible with **actions/checkout@v5**, the latest version
 
 ## 🐛 Troubleshooting
 
+
+### Build Directory in .gitignore
+
+**This is automatically handled!**
+
+If your build directory (e.g., `dist/`, `build/`) is in `.gitignore`, the action will automatically detect this and use `git add --force` to commit the files.
+
+**Common scenario:**
+```gitignore
+# .gitignore
+node_modules/
+dist/          # Build directory ignored locally
+coverage/
+```
+
+The action will:
+1. Detect that `dist/` is in `.gitignore`
+2. Automatically use `--force` flag when adding files
+3. Commit build files successfully
+
+**Why this works:** Developers often ignore build directories locally to keep their working tree clean, but CI/CD should commit official builds. This action handles both scenarios seamlessly.
+
+**No configuration needed** - the action automatically detects multiple `.gitignore` patterns:
+- `dist`
+- `dist/`
+- `dist/*`
+
 ### Build Directory Not Found
 If you get "No build directory found", specify the correct `build-dir`:
 ```yml
