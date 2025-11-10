@@ -142,7 +142,13 @@ log_info "Git status before adding files:"
 git status --porcelain
 
 # Check if build directory is in .gitignore
-if git check-ignore "$BUILD_DIR" >/dev/null 2>&1; then
+# We need to check if the directory OR any files in it are ignored
+# Try multiple patterns to catch all .gitignore variations (dist, dist/, dist/*)
+if git check-ignore "$BUILD_DIR" >/dev/null 2>&1 || \
+   git check-ignore "$BUILD_DIR/" >/dev/null 2>&1 || \
+   git check-ignore -q "$BUILD_DIR"/* >/dev/null 2>&1 || \
+   grep -q "^${BUILD_DIR}/\?$" .gitignore 2>/dev/null || \
+   grep -q "^${BUILD_DIR}$" .gitignore 2>/dev/null; then
     log_info "Build directory '$BUILD_DIR' is in .gitignore - will force add files"
     FORCE_ADD=true
 else
