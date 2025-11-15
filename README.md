@@ -8,8 +8,6 @@
 
 This GitHub Action runs your npm build script and automatically commits the generated build files to your repository. Perfect for keeping your source code clean while maintaining compiled assets for deployment or distribution.
 
-> 📋 **GitHub Marketplace Ready**: This action fully complies with [GitHub Marketplace requirements](https://docs.github.com/en/actions/creating-actions/publishing-actions-in-github-marketplace#prerequisites) and is ready for publication.
-
 ## ✨ Features
 
 - 🔧 **Configurable build command** - Use any npm script (defaults to `build`)
