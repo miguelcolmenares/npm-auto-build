@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege: the checks only read the repository.
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Show shellcheck version
+        run: shellcheck --version
+
+      - name: Lint every tracked shell script
+        run: git ls-files '*.sh' | xargs -r shellcheck
+
+  workflows:
+    name: workflows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install PyYAML
+        run: python -m pip install --quiet pyyaml
+
+      - name: Parse workflow and action YAML files
+        run: |
+          python - <<'PY'
+          import glob
+          import sys
+
+          import yaml
+
+          paths = sorted(glob.glob(".github/workflows/*.yml"))
+          paths += sorted(glob.glob("action.yml") + glob.glob("action.yaml"))
+          paths += [".github/dependabot.yml"]
+          failed = False
+          for path in paths:
+              try:
+                  with open(path, encoding="utf-8") as handle:
+                      yaml.safe_load(handle)
+                  print(f"ok    {path}")
+              except (OSError, yaml.YAMLError) as error:
+                  failed = True
+                  print(f"FAIL  {path}: {error}")
+          sys.exit(1 if failed else 0)
+          PY
+
+  # The self-test of the action (building a fixture repository and running the
+  # action against it) is added by issue #2 and will be a third job here.
