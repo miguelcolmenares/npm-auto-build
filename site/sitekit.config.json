@@ -71,8 +71,7 @@
           "name": "Start",
           "tone": "brand",
           "items": [
-            "getting-started",
-            "overview"
+            "getting-started"
           ]
         },
         {
@@ -137,12 +136,12 @@
     "enabled": true
   },
   "anonymize": {
-    "excludePaths": [],
+    "excludePaths": [
+      "docs/README.md"
+    ],
     "replace": {},
     "denyPatterns": [],
-    "allow": [
-      "me@miguelcolmenares.com"
-    ]
+    "allow": []
   },
   "llms": {
     "enabled": false,
