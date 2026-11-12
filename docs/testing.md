@@ -29,7 +29,16 @@ On Ubuntu: `sudo apt-get install -y shellcheck bats`. The tests need Node.js and
 | `tests/build.bats` | The real build of the fixture, a missing path, no directory guessing, scripts that do not exist |
 | `tests/token.bats` | The token is not in the environment of install and build scripts |
 | `tests/check.bats` | Mode check in a throwaway git repository: fresh, modified, new, deleted and ignored files, line endings, the cap of 50 files, paths outside the repository, no token, the diff files, standalone use |
+| `tests/commit.bats` | Mode commit against a local bare repository used as `origin`: commit and push, no second commit, detached HEAD, refused paths, rebase and retry, protected branch, author and message, and every place the token must not be |
 | `tests/action.bats` | Rules about `action.yml` (composite, `shell: bash`, pinned actions, no expression inside `run:`) |
+
+`tests/commit.bats` needs no network. Its `origin` is a bare repository on disk and the
+working repository is a clone of it, both under `$BATS_TEST_TMPDIR`. A fake `git` first on
+`PATH` records the arguments and the credential variables of every call, so the tests can
+show that the token is in no argument list and reaches only `git fetch` and `git push`.
+A `file://` remote ignores the `http.extraheader`, so the push itself proves nothing about
+the credential: the tests check how the header is built (`nab_build_auth_header`) and how it
+is passed (`nab_git_remote`) separately.
 
 `tests/fixture/` is a tiny project without dependencies. Its `build` script writes
 `dist/out.txt`. `tests/helpers.bash` holds the shared helpers.
@@ -37,7 +46,8 @@ On Ubuntu: `sudo apt-get install -y shellcheck bats`. The tests need Node.js and
 ## Run the scripts by hand
 
 The scripts read the `INPUT_*` variables that `action.yml` sets from the inputs. This
-runs the same steps as the action does in `build` mode, against the fixture:
+runs the same steps as the action does in `build` mode, against the fixture (the commit step
+needs a git repository with an `origin`, see `tests/commit.bats`):
 
 ```bash
 export GITHUB_ENV="$(mktemp)" GITHUB_OUTPUT="$(mktemp)"
@@ -86,6 +96,56 @@ and a file that git does not track (new, or ignored by `.gitignore`) are stale. 
 difference of carriage returns at the end of lines alone is not. A path that resolves
 outside the repository is refused.
 
+## Mode commit in a workflow
+
+`mode: commit` (the default) builds the project, then commits the `paths` to the branch
+that is checked out and pushes it. The workflow needs three things:
+
+```yaml
+permissions:
+  contents: write            # the push needs write access
+
+concurrency:                 # one run per branch at a time
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<sha> # vX.Y.Z
+        with:
+          persist-credentials: false   # the build cannot read a token from .git/config
+      - uses: miguelcolmenares/npm-auto-build@<sha> # vX.Y.Z
+        with:
+          mode: commit
+```
+
+- **`persist-credentials: false`.** Without it `actions/checkout` writes the token to
+  `.git/config`, where the install and build scripts can read it. The action prints a
+  warning when it finds such a header in the config.
+- **`permissions: contents: write`.** The default `GITHUB_TOKEN` of a read-only workflow
+  cannot push.
+- **`concurrency`.** If two runs push to the same branch, the second push is rejected. The
+  action then fetches the branch, rebases its one commit on top and pushes again, up to three
+  attempts, and it never force-pushes. A `concurrency` group avoids the race, and the extra
+  build, in the first place. If the rebase conflicts, the step aborts it and fails.
+- **A branch push.** A tag push and a `pull_request` event leave HEAD detached, so there is
+  no branch to push to and the step fails with an error that says so. Use `mode: check` for
+  pull requests.
+- **A protected branch.** `GITHUB_TOKEN` cannot push there. Pass a personal access token or a
+  GitHub App token that may bypass the protection as `token`, or use `mode: pr` (issue #5).
+- **The loop risk.** The default message ends with `[skip ci]`. A push with `GITHUB_TOKEN`
+  does not start workflows, but a push with a personal access token or a GitHub App token
+  does, so keep `[skip ci]` in a custom `commit-message`. The step prints a notice when it is
+  missing.
+
+How the token is used: only the commit step receives it. It copies it into a shell
+variable, masks it and its base64 form, and gives it to `git fetch` and `git push` only,
+as an `http.extraheader` in the `GIT_CONFIG_*` environment variables of that one command.
+It is never in a command line, a URL, `.git/config`, `git config --global` or a file.
+This needs git 2.31 or newer, which every GitHub-hosted runner has.
+
 ## CI
 
 | Job | What it does |
@@ -94,4 +154,5 @@ outside the repository is refused.
 | `workflows` | Parses every workflow and `action.yml` |
 | `bats` | Runs `bats tests/` on Ubuntu |
 | `self-test-check` | Commits a fresh build of `tests/fixture` locally and runs the action with `mode: check`, which must pass. Then it changes the build output without committing it and runs the action again, which must fail with `stale=true`, and downloads the artifact `npm-auto-build-stale-diff` to check the diff |
-| `self-test` | Runs the action itself (`uses: ./`) against `tests/fixture` on Ubuntu, macOS and Windows, and checks that `dist/out.txt` exists. It also checks that a mode that is not available yet fails |
+| `self-test` | Runs the action itself (`uses: ./`) against `tests/fixture` on Ubuntu, macOS and Windows in `mode: build`, and checks that `dist/out.txt` exists. It also checks that a mode that is not available yet (`pr`) fails |
+| `self-test-commit` | Runs `mode: commit` on Ubuntu on a throwaway branch, with `origin` pointed at a bare repository the job creates, so it never pushes to this repository. It checks the commit in that remote and `changed=true`, that a second run makes no commit (`changed=false`), and that a detached HEAD fails |

@@ -22,14 +22,36 @@ ACTION="$BATS_TEST_DIRNAME/../action.yml"
     [ "$status" -eq 1 ]
 }
 
-@test "the token is only read by the default of its input and the alias flag" {
+@test "the token is only read by the default of its input, the alias flag and the commit step" {
     # Any other use of the token in action.yml would be a way to reach a step.
     local uses
     uses=$(grep -nE 'github\.token|inputs\.token|inputs\.github-token|secrets\.' "$ACTION" | grep -v '^[0-9]*:\s*#' || true)
     echo "$uses" >&2
-    [ "$(printf '%s\n' "$uses" | grep -c .)" -eq 2 ]
+    [ "$(printf '%s\n' "$uses" | grep -c .)" -eq 3 ]
     printf '%s\n' "$uses" | grep -q 'default: \${{ github.token }}'
     printf '%s\n' "$uses" | grep -q "INPUT_GITHUB_TOKEN_SET: \${{ inputs.github-token != '' && 'true' || 'false' }}"
+    printf '%s\n' "$uses" | grep -q "NAB_TOKEN: \${{ inputs.github-token != '' && inputs.github-token || inputs.token }}"
+}
+
+@test "NAB_TOKEN is in the env of the commit step and of no other step" {
+    # The line number of NAB_TOKEN must fall between the commit step name and the next step.
+    local start end token_line
+    start=$(grep -n '^    - name: Commit$' "$ACTION" | cut -d: -f1)
+    token_line=$(grep -n 'NAB_TOKEN:' "$ACTION" | cut -d: -f1)
+    [ "$(printf '%s\n' "$token_line" | grep -c .)" -eq 1 ]
+    [ -n "$start" ]
+    end=$(awk -v s="$start" 'NR > s && /^    - name:|^branding:/ {print NR; exit}' "$ACTION")
+    [ "$token_line" -gt "$start" ]
+    [ -z "$end" ] || [ "$token_line" -lt "$end" ]
+}
+
+@test "the commit step runs only in mode commit, from the validate output" {
+    grep -A3 '^    - name: Commit$' "$ACTION" | grep -q "if: steps.validate.outputs.mode == 'commit'"
+}
+
+@test "the outputs changed and commit-sha come from the commit step" {
+    grep -A3 '^  changed:$' "$ACTION" | grep -q 'steps.commit.outputs.changed'
+    grep -A3 '^  commit-sha:$' "$ACTION" | grep -q 'steps.commit.outputs.commit-sha'
 }
 
 @test "there is no env: at the top level of the action or the steps list" {

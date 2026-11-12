@@ -1,6 +1,6 @@
 # GitHub Copilot Instructions
 
-This is a **GitHub Action** that builds an npm project and commits the build output. `main` holds the v3 composite action in progress (issue #10): `mode: build` and `mode: check` work, the modes `commit` and `pr` come with issues #3, #4 and #5. The v2 Docker action stays available through the `v2` tag. Understanding the line between the steps that run the project's code (no token) and the steps that hold the token is essential for effective contributions.
+This is a **GitHub Action** that builds an npm project and commits the build output. `main` holds the v3 composite action in progress (issue #10): `mode: commit` (the default), `mode: check` and `mode: build` work, the mode `pr` comes with issue #5. The v2 Docker action stays available through the `v2` tag. Understanding the line between the steps that run the project's code (no token) and the steps that hold the token is essential for effective contributions.
 
 ## Architecture Overview
 
@@ -10,6 +10,7 @@ This is a **GitHub Action** that builds an npm project and commits the build out
 - `scripts/validate-inputs.sh` - v2 alias mapping, mode gate, validation, writes `NAB_*` to `GITHUB_ENV`
 - `scripts/install.sh` - Dependency install, without the token
 - `scripts/build.sh` - Runs the build and checks every `paths` entry, without the token
+- `scripts/commit.sh` - Mode `commit`: stages the `paths`, commits and pushes to the checked out branch. The only script that gets the token, and it gives it to `git fetch` and `git push` only
 - `scripts/check.sh` - Compares the build output with `HEAD` (mode `check`), reads no token, runs without GitHub too
 - `tests/` - bats tests and the fixture project in `tests/fixture/`
 - `examples/` - Usage patterns (still written for v2, rewritten by issue #7)
