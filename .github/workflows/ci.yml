@@ -61,5 +61,77 @@ jobs:
           sys.exit(1 if failed else 0)
           PY
 
-  # The self-test of the action (building a fixture repository and running the
-  # action against it) is added by issue #2 and will be a third job here.
+  # Bats is installed from the Ubuntu archive. That keeps one more third-party action
+  # out of the supply chain, and the distribution pins the version. The tests only
+  # need bats and the Node.js that setup-node provides.
+  bats:
+    name: bats
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Install bats
+        run: sudo apt-get install -y bats
+
+      - name: Show versions
+        run: |
+          bats --version
+          node --version
+          npm --version
+
+      - name: Run the bats tests
+        run: bats --print-output-on-failure tests/
+
+  # Runs the action itself (`uses: ./`) against the fixture on the three systems.
+  self-test:
+    name: self-test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the fixture with the action
+        uses: ./
+        with:
+          mode: build
+          working-directory: tests/fixture
+          paths: dist
+
+      - name: Check that the build output exists
+        shell: bash
+        run: |
+          test -f tests/fixture/dist/out.txt
+          cat tests/fixture/dist/out.txt
+
+      - name: Run a mode that is not available yet
+        id: unavailable
+        uses: ./
+        continue-on-error: true
+        with:
+          mode: commit
+          working-directory: tests/fixture
+
+      - name: Check that the unavailable mode failed
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.unavailable.outcome }}
+        run: |
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "Expected mode commit to fail, the outcome was '$OUTCOME'." >&2
+            exit 1
+          fi

@@ -1,0 +1,4 @@
+# Shell scripts must keep LF line endings, a CRLF checkout on Windows breaks bash.
+*.sh text eol=lf
+*.bats text eol=lf
+tests/helpers.bash text eol=lf
