@@ -1,44 +1,45 @@
 # GitHub Copilot Instructions
 
-This is a **GitHub Action** for automating npm build and commit workflows. Understanding the Docker-based architecture and dual-mode operation is essential for effective contributions.
+This is a **GitHub Action** that builds an npm project and commits the build output. `main` holds the v3 composite action in progress (issue #10): only `mode: build` works, the modes `commit`, `check` and `pr` come with issues #3, #4 and #5. The v2 Docker action stays available through the `v2` tag. Understanding the line between the steps that run the project's code (no token) and the steps that hold the token is essential for effective contributions.
 
 ## Architecture Overview
 
 **Core Components:**
-- `action.yml` - GitHub Actions metadata and input definitions  
-- `entrypoint.sh` - Main execution logic (Bash script)
-- `Dockerfile` - Container environment (Node.js + Git)
-- `examples/` - Real-world usage patterns for different scenarios
+- `action.yml` - Composite action: v3 inputs and outputs, step order, `env:` per step
+- `scripts/lib.sh` - Logging (`log_info`, `log_warn`, `log_error`, `die`), env file helpers, package manager detection, `run_without_token`
+- `scripts/validate-inputs.sh` - v2 alias mapping, mode gate, validation, writes `NAB_*` to `GITHUB_ENV`
+- `scripts/install.sh` - Dependency install, without the token
+- `scripts/build.sh` - Runs the build and checks every `paths` entry, without the token
+- `tests/` - bats tests and the fixture project in `tests/fixture/`
+- `examples/` - Usage patterns (still written for v2, rewritten by issue #7)
 
-**Key Design Pattern:** This action operates in two distinct modes controlled by `build-only` input:
-1. **Build + Commit Mode** (default): Builds project and commits/pushes generated files
-2. **Build-Only Mode**: Only builds for testing (no Git operations)
+**Key Design Rules:**
+1. Inputs reach scripts only through `env:`, never through `${{ }}` inside `run:`.
+2. Install and build never see the token. Do not export it in an `env:` of those steps.
+3. Every script starts with `#!/usr/bin/env bash` and `set -euo pipefail`, and every expansion is quoted.
+4. No directory guessing: a missing `paths` entry is an error.
 
 ## Critical Workflows
 
 **Local Testing:**
 ```bash
-./test.sh [command] [build-dir] [project-path]  # Full Docker test
-./test-build-only.sh                            # Build-only mode test
+npm test                 # shellcheck on every script, then bats tests/ when bats exists
+bats tests/              # the bats tests alone (brew install bats-core)
 ```
 
-**Action Input Structure:** All inputs are prefixed with `INPUT_` in environment variables:
-- `command` → `INPUT_COMMAND` 
-- `build-only` → `INPUT_BUILD_ONLY`
+**Action Input Structure:** In the scripts, inputs arrive as `INPUT_` variables set by `env:` in `action.yml`:
+- `command` → `INPUT_COMMAND`
+- `working-directory` → `INPUT_WORKING_DIRECTORY`
 
-**Version Strategy:** Uses major version tags (`@v1`) that auto-update to latest `v1.x.x` releases.
+**Version Strategy:** Uses major version tags (`@v2`) that auto-update to the latest `v2.x.x` release. v3 gets its own tag when it is released.
 
 ## Project-Specific Conventions
 
-**Error Handling:** Uses colored logging functions (`log_info`, `log_warn`, `log_error`) defined in `entrypoint.sh`. Always use these instead of raw `echo`.
+**Error Handling:** Use the logging functions from `scripts/lib.sh` (`log_info`, `log_warn`, `log_error`, `die`). `log_warn` and `log_error` print `::warning::` and `::error::` workflow commands. Always use them instead of raw `echo`.
 
-**Directory Detection:** The action auto-detects build directories using this priority order:
-1. User-specified `build-dir` input
-2. Auto-detection: `dist/`, `build/`, `public/`, `out/`, `lib/`
+**Paths:** `paths` is a newline list, relative to `working-directory`. Entries that are empty, start with `-`, contain `..` or are absolute are rejected.
 
-**Git Operations:** Only performed when `BUILD_ONLY != "true"`. Always check this condition before any Git commands.
-
-**Package Manager Detection:** Automatically chooses between npm/yarn based on lockfile presence (`yarn.lock` vs `package-lock.json`).
+**Package Manager Detection:** `package-lock.json` runs `npm ci`, `yarn.lock` runs `yarn install --frozen-lockfile`, `pnpm-lock.yaml` runs `pnpm install --frozen-lockfile`, otherwise `npm install`. Issue #6 extends this.
 
 ## Integration Patterns
 
@@ -56,13 +57,13 @@ if: github.event_name == 'push'          # Build+commit for main
 
 ## Development Guidelines
 
-**When modifying `entrypoint.sh`:**
-- Always preserve the `BUILD_ONLY` early exit logic around line 70
-- Use the established logging functions for consistency
-- Test both modes with local scripts before committing
+**When modifying the scripts:**
+- Keep the split by responsibility: validation, install, build, one file each
+- Run `npm test` before committing, and add a bats test for each new rule
+- Never read or print the token in `install.sh` or `build.sh`
 
 **When updating examples:**
-- Use `@v1` tag references (not specific versions like `@v1.1.0`)
+- Use `@v2` tag references (not specific versions like `@v2.1.2`)
 - Include both build-only and build+commit scenarios
 - Reference `actions/checkout@v5` for Node.js 24 compatibility
 
@@ -94,4 +95,3 @@ gh api repos/owner/repo/releases | cat
 - `examples/complete-workflow.yml` - Standard dual-mode pattern
 - `examples/monorepo.yml` - Matrix strategy for multiple packages  
 - `examples/protected-branches.yml` - PAT configuration
-- `entrypoint.sh` lines 60-80 - Build-only mode implementation

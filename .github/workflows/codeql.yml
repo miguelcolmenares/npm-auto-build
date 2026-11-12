@@ -1,6 +1,6 @@
 name: CodeQL
 
-# This repository ships shell scripts, a Dockerfile and GitHub Actions workflows,
+# This repository ships shell scripts and GitHub Actions workflows,
 # so the only language CodeQL analyzes here is `actions`. It runs on every push
 # to main, on pull requests into main, and once a week, so an alert closes when
 # its fix lands on main.

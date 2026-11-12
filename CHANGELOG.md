@@ -7,13 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- **A failed direct push is reported once, with its real error.** The action ran `git push` a second time only to read the error text, so a retry that succeeded still ended with exit code 1. It now captures the output of the first push.
-- A stray character in the protected-branch hint no longer breaks the line.
+`main` is now the v3 composite action in progress (issue #10). Only `mode: build` works so far. The modes `commit`, `check` and `pr` come with issues #3, #4 and #5, so `main` offers less than v2 until they land. Nothing is released from `main` yet. v2 stays available through the `v2` tag: use `miguelcolmenares/npm-auto-build@v2` for the Docker action.
+
+### Added
+- **Composite action** (`runs: using: composite`), so it runs on Linux, macOS and Windows runners, on the host and not in an Alpine container.
+- **The full v3 contract is declared:** the inputs `mode`, `working-directory`, `command`, `install-command`, `package-manager`, `node-version`, `node-version-file`, `paths`, `token`, `commit-message`, `git-user-name`, `git-user-email`, `branch`, `pr-title`, `pr-labels`, `auto-merge`, `ignore-scripts` and `upload-diff`, and the outputs `changed`, `stale`, `commit-sha`, `pull-request-url` and `pull-request-number`. In `build` mode the outputs are empty. A mode other than `build` fails at once and names the issue that implements it.
+- **A real `node-version`**, default `24`, installed with `actions/setup-node` (pinned by commit SHA). `node-version-file` is supported and wins over `node-version`.
+- **The install and build steps run without the token.** The token is not passed to them, and the scripts remove the known token variables (`GITHUB_TOKEN`, `GH_TOKEN`, `INPUT_TOKEN`, `INPUT_GITHUB_TOKEN`, `ACTIONS_RUNTIME_TOKEN` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN`) from their environment even when the workflow exports one. A test prints the environment of an install script and a build script and finds no token.
+- **Input validation.** Inputs reach the scripts only through environment variables. A `paths` entry that is empty, starts with `-`, contains `..` or is absolute is rejected, and so is a `working-directory` that leaves the workspace. Values with a line break, or longer than 1024 characters, are rejected. Spaces, quotes and `$()` are kept as text and never run.
+- **v2 input names are accepted as aliases** with a warning that names the new input: `build-only` (`mode: build`), `create-pr` (`mode: pr`), `directory` (`working-directory`), `build-dir` (`paths`) and `github-token` (`token`). `github-token` only prints the warning for now: its value is not read, and issue #3 decides whether it feeds the commit step.
+- `ignore-scripts` input: installs with `--ignore-scripts`.
+- **bats tests** (`tests/`) with a fixture project, and CI jobs `bats` and `self-test`. The self-test runs the action against the fixture on Ubuntu, macOS and Windows.
+- `.gitattributes` keeps LF line endings in shell scripts, so a Windows checkout does not break them.
 
 ### Changed
-- The action prints a warning when the `node-version` input asks for a different Node.js major than the one in the Docker image. The input has no effect in this action, and a real one comes with v3.
-- The repository has CI now: shellcheck on every shell script, a check that the workflow files parse, CodeQL, and Dependabot with auto-merge for minor and patch updates. `docker-compose.yml` is removed and the local test scripts no longer use a hard-coded path. None of this changes how the action runs.
+- The default Node.js version is 24 and `node-version` has an effect now.
+- The scripts live in `scripts/` (`lib.sh`, `validate-inputs.sh`, `install.sh`, `build.sh`), one responsibility each, with `set -euo pipefail`. The logic is no longer in the YAML.
+- A missing `paths` entry after the build is an error that lists the missing paths.
+- Package manager detection: `package-lock.json` runs `npm ci`, `yarn.lock` runs `yarn install --frozen-lockfile`, `pnpm-lock.yaml` runs `pnpm install --frozen-lockfile`, otherwise `npm install`. `install-command` overrides it.
+- `npm test` runs shellcheck and, when bats is installed, `bats tests/`. Dependabot no longer watches Docker.
+- The CI and housekeeping from #13 and the push fix of the Docker action are in no release: the Docker code they changed is removed here.
+- README: a note at the top says that v3 is in development and `@v2` is the stable version. The rest is rewritten by issue #7.
+
+### Removed
+- `Dockerfile` and `entrypoint.sh`, and the Docker only scripts `test.sh`, `test-build-only.sh`, `scripts/test-local.sh`, `scripts/test-debug.sh` and `scripts/Dockerfile.debug`. They stay available through the `v2` tag.
+- **The guessing of the build directory** (`dist`, `build`, `lib`, `public`, `out`, `.next`).
 
 ## [2.1.2] - 2025-11-10
 

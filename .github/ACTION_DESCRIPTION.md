@@ -12,7 +12,7 @@ This action runs your npm build script and automatically commits the generated b
 - 🧹 **Clean repository** - Keep source and build files separate  
 - 🔄 **Consistent builds** - Always built in the same CI environment
 - ⚡ **Zero configuration** - Works out of the box with sensible defaults
-- 📦 **Smart detection** - Automatically finds your build directory
+- 📦 **Explicit paths** - You say which build output to keep (`paths`)
 - 🛠️ **Flexible** - Configurable for any npm project
 
 ## Perfect for
@@ -27,9 +27,9 @@ This action runs your npm build script and automatically commits the generated b
 
 ```yaml
 - name: Auto Build
-  uses: miguelcolmenares/npm-auto-build@v1
+  uses: miguelcolmenares/npm-auto-build@v2
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-That's it! The action will automatically detect your build script and directory, run the build, and commit any changes.
+That's it. This is the stable v2 usage. v3 is in development on `main`, see the CHANGELOG.
