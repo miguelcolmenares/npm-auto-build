@@ -1,35 +1,46 @@
-# NPM Auto Build Action
+# NPM Auto Build
 
-**Automatically build and commit your npm project's build files to your repository**
+**Builds your npm project and commits `dist/` for you**
+
+A push runs your project's build, and the action commits the build output to the repository, so nobody has to do it by hand.
 
 ## What it does
 
-This action runs your npm build script and automatically commits the generated build files to your repository, keeping your source code clean while maintaining compiled assets for deployment.
+The action installs your dependencies, runs your build script and, depending on the mode, commits the result, checks it, or opens a pull request with it. Your build runs without the write token. Only the commit step and the pull request step hold it.
 
-## Key benefits
+## The four modes
 
-- ✨ **Automated builds** - Never forget to build before release
-- 🧹 **Clean repository** - Keep source and build files separate  
-- 🔄 **Consistent builds** - Always built in the same CI environment
-- ⚡ **Zero configuration** - Works out of the box with sensible defaults
-- 📦 **Explicit paths** - You say which build output to keep (`paths`)
-- 🛠️ **Flexible** - Configurable for any npm project
+- `commit` (default): builds, then commits the build output to the current branch.
+- `check`: builds, then fails when the committed build output is stale.
+- `pr`: commits the build output to a branch of its own and keeps one pull request up to date.
+- `build`: builds and checks that the output exists, and pushes nothing.
 
-## Perfect for
+## Also
 
-- React, Vue, Angular applications
-- TypeScript libraries  
-- Static site generators (Gatsby, Next.js)
-- Documentation sites
-- Any npm project with build output
+- Node.js 24 by default, or the version you set.
+- npm, pnpm, yarn classic and yarn berry, and private registries.
+- A composite action that runs on Linux, macOS and Windows runners.
+- Every action that it uses is pinned by commit SHA.
 
 ## Quick start
 
 ```yaml
-- name: Auto Build
-  uses: miguelcolmenares/npm-auto-build@v2
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
+name: Build
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: miguelcolmenares/npm-auto-build@v3
 ```
 
-That's it. This is the stable v2 usage. v3 is in development on `main`, see the CHANGELOG.
+The tag `@v3` is available after the v3 release. See the README for the inputs, the outputs and the other modes, and the migration guide if you come from v2.

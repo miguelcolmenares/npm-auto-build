@@ -1,0 +1,31 @@
+# A protected branch, with a token that may bypass the protection.
+#
+# BUILD_BOT_TOKEN is a repository secret: a personal access token, or a token of a GitHub
+# App, that is allowed to bypass the branch protection or the ruleset of main. Only the
+# commit step receives it. A push with such a token starts workflows, so keep [skip ci] in
+# the commit message (the default has it), or this workflow runs again and again.
+name: Build
+
+on:
+  push:
+    branches: [main]
+
+# The job reads the repository with the default token. The push uses BUILD_BOT_TOKEN.
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: miguelcolmenares/npm-auto-build@v3
+        with:
+          token: ${{ secrets.BUILD_BOT_TOKEN }}
+          commit-message: "chore: update build output [skip ci]"

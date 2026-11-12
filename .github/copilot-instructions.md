@@ -15,7 +15,8 @@ This is a **GitHub Action** that builds an npm project and commits the build out
 - `scripts/pr.sh` - Mode `pr`: commits the build output to a bot branch, force-pushes it with a lease (only that branch, never the base, a protected name or a branch it did not make) and keeps one pull request up to date with `gh`. The other script that gets the token: `git ls-remote`, `git fetch` and `git push` through `GIT_CONFIG_*`, and `gh` as `GH_TOKEN` for one command
 - `scripts/check.sh` - Compares the build output with `HEAD` (mode `check`), reads no token, runs without GitHub too
 - `tests/` - bats tests and the fixture project in `tests/fixture/`
-- `examples/` - Usage patterns (still written for v2, rewritten by issue #7)
+- `examples/` - Complete v3 workflow files, checked against `action.yml` by `tests/docs-examples.py`
+- `docs/recipes.md` and `docs/migration-v2-to-v3.md` - Setups and the v2 to v3 changes, checked by the same script
 
 **Key Design Rules:**
 1. Inputs reach scripts only through `env:`, never through `${{ }}` inside `run:`.
@@ -50,14 +51,15 @@ bats tests/              # the bats tests alone (brew install bats-core)
 **Example Workflow Pattern:**
 ```yaml
 # Complete workflow shows the standard dual-mode pattern
-if: github.event_name == 'pull_request'  # Build-only for PRs
-if: github.event_name == 'push'          # Build+commit for main
+if: github.event_name == 'pull_request'  # mode: check for PRs
+if: github.event_name == 'push'          # mode: commit for main
 ```
 
 **Permission Requirements:**
-- Build-only mode: No special permissions needed
-- Build+commit mode: Requires `contents: write` permission
-- Protected branches: Requires Personal Access Token (PAT)
+- Modes `build` and `check`: `contents: read` is enough
+- Mode `commit`: `contents: write` and `persist-credentials: false` on the checkout
+- Mode `pr`: the same, plus `pull-requests: write`
+- Protected branches: a personal access token or a GitHub App token as `token`, or mode `pr`
 
 ## Development Guidelines
 
@@ -67,9 +69,9 @@ if: github.event_name == 'push'          # Build+commit for main
 - Never read or print the token in `install.sh` or `build.sh`
 
 **When updating examples:**
-- Use `@v2` tag references (not specific versions like `@v2.1.2`)
-- Include both build-only and build+commit scenarios
-- Reference `actions/checkout@v5` for Node.js 24 compatibility
+- Use `@v3` references, and `actions/checkout@v7` with `persist-credentials: false`
+- Use only inputs that exist in `action.yml`, and never the v2 names (`github-token`, `directory`, `build-dir`, `build-only`, `create-pr`) except in the v2 "before" blocks of the migration guide, which carry the skip marker
+- Run `python3 tests/docs-examples.py --tables README.md --require-modes README.md` and the same script on the other docs after an edit, or `bats tests/docs-examples.bats`
 
 **Marketplace Compliance:**
 - The Marketplace requires a public repository, a single `action.yml` or `action.yaml` at the root and a unique `name` ([requirements](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/publish-in-github-marketplace)). Workflow files under `.github/workflows/` are allowed, and the repository has them for CI.
@@ -98,4 +100,4 @@ gh api repos/owner/repo/releases | cat
 **Key Files to Reference:**
 - `examples/complete-workflow.yml` - Standard dual-mode pattern
 - `examples/monorepo.yml` - Matrix strategy for multiple packages  
-- `examples/protected-branches.yml` - PAT configuration
+- `examples/protected-branch-pr.yml` and `examples/protected-branch-token.yml` - Mode `pr` and a token that may bypass the protection

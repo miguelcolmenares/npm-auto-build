@@ -8,84 +8,69 @@ Welcome to the comprehensive documentation for NPM Auto Build Action.
 - **[Testing Guide](testing.md)** - Complete guide for local testing
 - **[Examples](../examples/README.md)** - Usage examples for different frameworks
 - **[Main README](../README.md)** - Getting started and basic usage
+- **[Recipes](recipes.md)** - Protected branches, tag and pull request events, monorepos, private registries, pnpm and yarn, Bitbucket
+- **[Migration guide](migration-v2-to-v3.md)** - From v2 to v3: renamed inputs, breaking changes, staying on `@v2`
 
 ## 🎯 Quick Links
 
 ### For Users
-- [Getting Started](../README.md#-quick-start)
-- [Configuration Options](../README.md#-inputs)
-- [Use Cases](../README.md#-use-cases)
-- [Troubleshooting](../README.md#-troubleshooting)
+- [Getting Started](../README.md#quick-start)
+- [The four modes](../README.md#the-four-modes)
+- [Inputs](../README.md#inputs)
+- [Troubleshooting](../README.md#troubleshooting)
 
 ### For Contributors
 - [Local Testing](testing.md)
 - [Development Scripts](../scripts/)
-- [Contributing Guidelines](../README.md#-contributing)
+- [Contributing Guidelines](../README.md#contributing)
 
 ## 🔧 Advanced Configuration
 
+The examples use `@v3`, which is available after the v3 release. Until then, use the full commit SHA of a commit on `main`, or `@main`. Complete workflows are in the [recipes](recipes.md) and in [`examples/`](../examples/README.md).
+
 ### Custom Build Environments
 
-The action supports various Node.js environments and package managers:
-
 ```yml
-- name: Build with specific Node version
-  uses: miguelcolmenares/npm-auto-build@v2
+- name: Build with a specific Node version
+  uses: miguelcolmenares/npm-auto-build@v3
   with:
-    node-version: '20'
+    node-version: '22'
     command: 'build:prod'
-    github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### Monorepo Support
 
-For projects with multiple packages:
+For projects with several packages, use one job per package, each with its own `working-directory` and `paths`. See [Matrix and monorepo](recipes.md#matrix-and-monorepo).
+
+### Permissions
 
 ```yml
-- name: Build Frontend
-  uses: miguelcolmenares/npm-auto-build@v2
-  with:
-    directory: './packages/frontend'
-    build-dir: 'dist'
-    commit-message: 'chore: update frontend build'
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-```
-
-### CI/CD Integration
-
-Best practices for integrating with different CI/CD systems:
-
-```yml
-# Standard workflow - Direct push
+# mode: commit
 permissions:
   contents: write
 
-# Protected branches - Pull request creation
+# mode: pr
 permissions:
   contents: write
   pull-requests: write
+
+# mode: check and mode: build
+permissions:
+  contents: read
 ```
 
 ### Protected Branches
 
-For repositories with branch protection rules, use the pull request approach:
-
-```yml
-- name: Build and Create PR
-  uses: miguelcolmenares/npm-auto-build@v2
-  with:
-    create-pr: true  # Creates PR instead of direct push
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-```
+For a branch with protection rules, use a token that may bypass the protection, or mode `pr`. See [Protected branch](recipes.md#protected-branch).
 
 ## 🛠️ Technical Details
 
 ### How It Works
 
-1. **Environment Setup**: Installs Node.js and dependencies
-2. **Build Execution**: Runs the specified npm script
-3. **Change Detection**: Compares build output with git history
-4. **Git Operations**: Commits and pushes changes if detected
+1. **Validate**: checks every input and maps the v2 names to the v3 ones.
+2. **Environment setup**: installs Node.js and the dependencies, without the token.
+3. **Build execution**: runs the `package.json` script of `command`, without the token, and checks that every `paths` entry exists.
+4. **Mode step**: `commit` commits and pushes the paths to the checked out branch, `check` compares them with `HEAD`, `pr` commits them to a bot branch and keeps one pull request up to date, and `build` does nothing more.
 
 ### Supported Package Managers
 
@@ -95,24 +80,17 @@ For repositories with branch protection rules, use the pull request approach:
 - **yarn**: classic `yarn install --frozen-lockfile`, berry `yarn install --immutable`
 - **bun** is not supported. See [Testing](testing.md#package-managers-and-private-registries) for the details.
 
-### Build Directory Detection
+### Build Output Paths
 
-The action automatically detects common build directories:
-- `dist/` (default)
-- `build/`
-- `lib/`
-- `public/`
-- `out/`
-- `.next/`
+The action does not guess the build directory. It uses the `paths` input, one path per line, relative to `working-directory`, and `dist` by default. Every path must exist after the build, or the step fails and lists the missing ones.
 
 ## 🔒 Security Considerations
 
-- Uses GitHub's built-in `GITHUB_TOKEN` for authentication
-- No sensitive data is logged or exposed
-- Runs in isolated Docker container
-- Follows GitHub Actions security best practices
-- **Pull Request Mode**: `create-pr: true` works with standard GitHub permissions, no PAT required
-- **Protected Branches**: Automatically handles branch protection by creating reviewable PRs
+- The `token` input is read only by the Commit step (mode `commit`) and the Pull request step (mode `pr`). The install and build steps never receive it.
+- Mode `check` and mode `build` read no token.
+- The action is composite and runs on the runner, not in a container.
+- Every action that it uses is pinned by commit SHA.
+- See the [threat model](threat-model.md) and the [security policy](../SECURITY.md).
 
 ## 🐛 Common Issues and Solutions
 
