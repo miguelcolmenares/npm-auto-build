@@ -397,18 +397,29 @@ push_calls() {
     not g config --get user.name
 }
 
-@test "the repository hooks do not run, a commitlint style hook cannot block the build commit" {
-    build
-    mkdir -p .git/hooks
-    local hook
-    for hook in pre-commit commit-msg pre-push post-commit pre-rebase; do
-        printf '#!/bin/sh\ntouch "%s/hook-ran-%s"\nexit 1\n' "$BATS_TEST_TMPDIR" "$hook" >".git/hooks/$hook"
-        chmod +x ".git/hooks/$hook"
+# Put a hook of every kind that matters into a directory. Each one leaves a marker and fails.
+install_failing_hooks() {
+    local dir=$1 hook
+    mkdir -p "$dir"
+    for hook in pre-commit commit-msg pre-push post-commit pre-rebase post-checkout post-rewrite reference-transaction; do
+        printf '#!/bin/sh\ntouch "%s/hook-ran-%s"\nexit 1\n' "$BATS_TEST_TMPDIR" "$hook" >"$dir/$hook"
+        chmod +x "$dir/$hook"
     done
-    # A hooks path that a package like husky sets in the local config.
-    mkdir -p .husky
-    printf '#!/bin/sh\ntouch "%s/hook-ran-husky"\nexit 1\n' "$BATS_TEST_TMPDIR" >.husky/pre-commit
-    chmod +x .husky/pre-commit
+}
+
+@test "the default .git/hooks do not run, a commitlint style hook cannot block the build commit" {
+    build
+    install_failing_hooks .git/hooks
+    run bash "$SCRIPTS/commit.sh"
+    echo "$output" >&2
+    [ "$status" -eq 0 ]
+    [ "$(output_value commit-sha)" = "$(remote_head)" ]
+    not ls "$BATS_TEST_TMPDIR"/hook-ran-* 2>/dev/null
+}
+
+@test "hooks from a core.hooksPath, like husky sets, do not run either" {
+    build
+    install_failing_hooks .husky
     g config core.hooksPath .husky
     run bash "$SCRIPTS/commit.sh"
     echo "$output" >&2
