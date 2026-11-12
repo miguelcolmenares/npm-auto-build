@@ -76,7 +76,7 @@ jobs:
       - name: Install bats
         run: |
           sudo apt-get update
-          sudo apt-get install -y bats
+          sudo apt-get install -y bats python3-yaml
 
       - name: Show versions
         run: |
@@ -517,3 +517,31 @@ jobs:
           test -f "tests/fixtures/$FIXTURE/dist/out.txt"
           cat "tests/fixtures/$FIXTURE/dist/out.txt"
           grep -q "built by the $FIXTURE fixture" "tests/fixtures/$FIXTURE/dist/out.txt"
+
+  # The YAML examples of the README, the examples directory and the docs, checked against
+  # action.yml. This is a structural check: each snippet must parse, use this action at @v3,
+  # @main or a commit SHA, pass only inputs that exist with valid values, and have the
+  # permissions and the checkout that its mode needs. It does not run the examples. The
+  # self-test jobs above run the action itself, against the fixture projects.
+  docs-examples:
+    name: docs-examples
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install PyYAML
+        run: python -m pip install --quiet pyyaml
+
+      - name: Check the README, its tables and its modes
+        run: python tests/docs-examples.py --tables README.md --require-modes README.md
+
+      - name: Check the examples and the other docs
+        run: python tests/docs-examples.py examples/*.yml docs/recipes.md docs/migration-v2-to-v3.md docs/README.md .github/ACTION_DESCRIPTION.md
