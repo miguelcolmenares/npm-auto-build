@@ -3,11 +3,11 @@ description: "Builds your npm project and commits the build output to your repos
 
 author: "Miguel Colmenares <me@miguelcolmenares.com>"
 
-# v3 contract (issue #10). Only `mode: build` works for now. The modes commit, check
-# and pr are implemented by issues #3, #4 and #5 and fail at once with a clear error.
+# v3 contract (issue #10). The modes build and check work for now. The modes commit
+# and pr are implemented by issues #3 and #5 and fail at once with a clear error.
 inputs:
   mode:
-    description: "What the action does: commit (default), check, pr or build. Only build is available yet, commit, check and pr are implemented by issues #3, #4 and #5."
+    description: "What the action does: commit (default), check, pr or build. Build and check are available, commit and pr are implemented by issues #3 and #5."
     required: false
     default: "commit"
   working-directory:
@@ -109,8 +109,8 @@ outputs:
     description: "true when the build output differs from the repository. Empty in build mode."
     value: ${{ steps.build.outputs.changed }}
   stale:
-    description: "true when the committed build output is out of date (mode check). Empty in build mode."
-    value: ${{ steps.build.outputs.stale }}
+    description: "true when the committed build output is out of date, false when it is fresh (mode check). Empty in the other modes."
+    value: ${{ steps.check.outputs.stale }}
   commit-sha:
     description: "SHA of the commit with the build output. Empty in build mode."
     value: ${{ steps.build.outputs.commit-sha }}
@@ -177,6 +177,25 @@ runs:
       env:
         ACTION_PATH: ${{ github.action_path }}
       run: bash "$ACTION_PATH/scripts/build.sh"
+
+    # Mode check. Reads the build output and compares it with HEAD. It needs no token
+    # and reads none, so it works on pull requests from forks.
+    - name: Check the build output
+      id: check
+      if: steps.validate.outputs.mode == 'check'
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: bash "$ACTION_PATH/scripts/check.sh"
+
+    - name: Upload the diff
+      if: always() && steps.validate.outputs.mode == 'check' && inputs.upload-diff == 'true' && steps.check.outputs.stale == 'true'
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: npm-auto-build-stale-diff
+        path: ${{ runner.temp }}/nab-check
+        if-no-files-found: ignore
+        retention-days: 7
 
 branding:
   icon: "package"
