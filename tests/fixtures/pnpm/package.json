@@ -1,0 +1,9 @@
+{
+  "name": "npm-auto-build-fixture-pnpm",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.34.9",
+  "scripts": {
+    "build": "node build.js"
+  }
+}
