@@ -29,7 +29,7 @@ This is a **GitHub Action** that builds an npm project and commits the build out
 **Local Testing:**
 ```bash
 npm test                 # shellcheck on every script, then bats tests/ when bats exists
-bats tests/              # the bats tests alone (brew install bats-core)
+bats tests/              # the bats tests alone (brew install bats-core; docs-examples needs PyYAML and skips without it)
 ```
 
 **Action Input Structure:** In the scripts, inputs arrive as `INPUT_` variables set by `env:` in `action.yml`:

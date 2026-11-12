@@ -6,7 +6,7 @@ Welcome to the comprehensive documentation for NPM Auto Build Action.
 
 - **[Architecture](architecture.md)** - The two trust zones, what each script may do, and the rules the tests enforce
 - **[Testing Guide](testing.md)** - Complete guide for local testing
-- **[Examples](../examples/README.md)** - Usage examples for different frameworks
+- **[Examples](../examples/README.md)** - Complete workflow files: check and commit, monorepo, and protected branch (pr and token)
 - **[Main README](../README.md)** - Getting started and basic usage
 - **[Recipes](recipes.md)** - Protected branches, tag and pull request events, monorepos, private registries, pnpm and yarn, Bitbucket
 - **[Migration guide](migration-v2-to-v3.md)** - From v2 to v3: renamed inputs, breaking changes, staying on `@v2`
@@ -95,7 +95,7 @@ The action does not guess the build directory. It uses the `paths` input, one pa
 ## 🐛 Common Issues and Solutions
 
 ### Permission Issues
-Ensure your workflow has `contents: write` permission.
+Mode `commit` needs `contents: write` and `persist-credentials: false` on the checkout, and mode `pr` also needs `pull-requests: write`. Modes `check` and `build` need only `contents: read`. See [Permissions and checkout](../README.md#permissions-and-checkout).
 
 ### Build Failures
 Check that your build script works locally first.

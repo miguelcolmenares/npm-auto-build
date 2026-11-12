@@ -95,7 +95,7 @@ inputs:
     required: false
     default: "npm-auto-build-stale-diff"
 
-  # v2 names, accepted for a short time, each with a warning that names the new input. The
+  # v2 names, accepted as aliases with no removal date, each with a warning that names the new input. The
   # value of github-token is read only by the commit and pr steps, where it wins over token.
   github-token:
     description: "Deprecated, use token. Accepted so a v2 workflow keeps working: a warning is printed and the value is used as the token of the commit and pr steps, where it wins over token."

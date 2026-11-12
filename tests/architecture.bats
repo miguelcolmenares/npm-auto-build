@@ -274,7 +274,7 @@ YAML
 @test "every script path in the docs points to a script that exists" {
     local doc ref
     for doc in README.md docs/README.md docs/architecture.md docs/testing.md \
-        .github/copilot-instructions.md; do
+        docs/recipes.md docs/migration-v2-to-v3.md examples/README.md .github/copilot-instructions.md; do
         for ref in $(grep -oE 'scripts/[A-Za-z0-9_.-]+\.sh' "$REPO_ROOT/$doc" | sort -u); do
             [ -f "$REPO_ROOT/$ref" ] || {
                 echo "$doc names $ref, which does not exist" >&2

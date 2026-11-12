@@ -169,7 +169,7 @@ jobs:
           ignore-scripts: true
 ```
 
-Use a token made for the registry, with read access only. Do not put the GitHub token in `NODE_AUTH_TOKEN`. The action removes the GitHub token variables from the install and the build, but it cannot hide a variable that you set on purpose, and the lifecycle scripts of your dependencies can read `NODE_AUTH_TOKEN`. That is why the example sets `ignore-scripts: true`. Remove it if a dependency needs its install script. A `registry-url` with a user name, a password, a query or a token setting in it is refused. The contract is in [docs/testing.md](testing.md#package-managers-and-private-registries).
+Use a token made for the registry, with read access only. Do not put the GitHub token in `NODE_AUTH_TOKEN`. The action removes the GitHub token variables from the install and the build, but it cannot hide a variable that you set on purpose, and the lifecycle scripts of your dependencies can read `NODE_AUTH_TOKEN`. That is why the example sets `ignore-scripts: true`. Remove it if a dependency needs its install script. Your build script runs with the same environment and can read the variable too, so keep the registry token read only. A `registry-url` with a user name, a password, a query or a token setting in it is refused. The contract is in [docs/testing.md](testing.md#package-managers-and-private-registries).
 
 ## pnpm and yarn
 

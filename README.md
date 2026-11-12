@@ -155,13 +155,13 @@ Mode `commit` and mode `pr` need two things in the workflow, with the default to
 - `permissions: contents: write` for the push. Mode `pr` also needs `pull-requests: write`.
 - `persist-credentials: false` on `actions/checkout`. Without it, the checkout writes the token to `.git/config`, where the install and build scripts could read it. The action prints a warning when it finds such a header.
 
-Mode `check` and mode `build` need only `contents: read` and a checkout. A `concurrency` group is a good idea whenever several runs can push to the same branch, as in the examples above. For a protected branch, see the [recipes](docs/recipes.md#protected-branch).
+Mode `check` and mode `build` need only `contents: read` and a checkout. A `concurrency` group is a good idea whenever several runs can push to the same branch, as in the examples above. In mode `commit` and mode `pr`, the build folders in `paths` may be in `.gitignore`, because the action adds them with `git add --force`. In mode `check`, output that git does not track, ignored files included, counts as stale, so commit the build output before you use that mode. For a protected branch, see the [recipes](docs/recipes.md#protected-branch).
 
 ## The token
 
 The action runs code that it does not control: the install scripts of your dependencies and your build script. So the write token never reaches them. The validate, install and build steps do not receive the `token` input, and the scripts remove the known GitHub token variables from the environment of the package manager. The `token` input is read only in the Commit step (mode `commit`) and the Pull request step (mode `pr`), and mode `check` and mode `build` read no token at all.
 
-Those two steps give the token to `git fetch`, `git push` and, in mode `pr`, `gh`, for that one command. It goes through an `http.extraheader` in `GIT_CONFIG_*` variables and through `GH_TOKEN`. It is never in a command line, a URL, `.git/config` or a file, and it is masked in the log. A registry token that you set yourself, such as `NODE_AUTH_TOKEN`, is a different matter, see [the recipe](docs/recipes.md#private-registry). The full model is in [docs/threat-model.md](docs/threat-model.md).
+Those two steps give the token to `git fetch`, `git push` and, in mode `pr`, `gh`, for that one command. It goes through an `http.extraheader` in `GIT_CONFIG_*` variables and through `GH_TOKEN`. It is never in a command line, a URL, `.git/config` or a file, and it is masked in the log. Pin the action to a full commit SHA, with the version in a comment (`uses: miguelcolmenares/npm-auto-build@<40-character SHA> # vX.Y.Z`), in a workflow that has a write token, because a tag can move. A registry token that you set yourself, such as `NODE_AUTH_TOKEN`, is a different matter, see [the recipe](docs/recipes.md#private-registry). The full model is in [docs/threat-model.md](docs/threat-model.md).
 
 ## Inputs
 

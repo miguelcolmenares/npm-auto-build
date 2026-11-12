@@ -16,7 +16,7 @@ installed. To install the tools on macOS:
 brew install shellcheck bats-core
 ```
 
-On Ubuntu: `sudo apt-get install -y shellcheck bats`. The tests need Node.js and npm
+On Ubuntu: `sudo apt-get install -y shellcheck bats python3-yaml`. On macOS also run `pip install pyyaml`. `tests/docs-examples.bats` skips when PyYAML is missing, so `npm test` passes without it. The tests need Node.js and npm
 (the fixture is built with the real `npm`). Use Node 24 to match the action default.
 
 ## The bats tests

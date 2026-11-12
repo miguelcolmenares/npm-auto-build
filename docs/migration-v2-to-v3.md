@@ -68,7 +68,7 @@ The v2 names are accepted as aliases. Each one prints a warning that names the n
 
 Two details. A `build-only` or `create-pr` value other than `true` or `false` fails the step. And `build-only: false` or `create-pr: false` still prints the warning, and changes nothing.
 
-The other v2 inputs keep their name: `command`, `commit-message`, `git-user-name`, `git-user-email` and `node-version`. Their defaults changed, see below.
+The other v2 inputs keep their name: `command`, `commit-message`, `git-user-name`, `git-user-email` and `node-version`. Only the defaults of `commit-message` and `node-version` changed, see below.
 
 ## Breaking changes
 
@@ -80,7 +80,7 @@ v2 ran in a Docker container on an Alpine image. v3 is a composite action that r
 
 In v2 the `node-version` input had no effect, the container always used its own Node.js. In v3 the action installs the version you ask for with `actions/setup-node`. The default is `24`. Set `node-version`, or `node-version-file` (for example `.nvmrc`), when your project needs another version. The file wins over `node-version`.
 
-### The token is only in the commit step
+### The token is only in the commit and pr steps
 
 In v2 the token was in the same container as `npm ci` and your build. In v3 the validate, install and build steps never receive it. Only the Commit step (mode `commit`) and the Pull request step (mode `pr`) hold it, and they give it to `git` and `gh` for one command at a time.
 

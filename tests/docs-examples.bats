@@ -306,3 +306,20 @@ EOF
     run grep -nE 'import (subprocess|socket|urllib|requests|http)|os\.system|eval\(|exec\(' "$VALIDATOR"
     [ "$status" -ne 0 ]
 }
+
+@test "the docs stop saying that @v3 is not released once a v3 tag exists" {
+    # The docs say "@v3 is available after the v3 release". That sentence is a promise with no
+    # date, so it must go with the release. This test fails once a v3 tag exists and the sentence
+    # is still in a doc. The CHANGELOG is history and is not checked. A shallow clone without
+    # tags cannot see the tag, so the check runs where the tags are fetched, such as a local clone.
+    local tags doc
+    tags=$(git -C "$REPO_ROOT" tag -l 'v3' 'v3.*')
+    [ -z "$tags" ] || {
+        for doc in README.md docs/README.md docs/recipes.md docs/migration-v2-to-v3.md examples/README.md; do
+            if grep -q 'is available after the v3 release' "$REPO_ROOT/$doc"; then
+                echo "$doc still says that @v3 is not released, and the tag exists: $tags" >&2
+                return 1
+            fi
+        done
+    }
+}
