@@ -28,6 +28,9 @@ setup() {
     mkdir -p "$WORK/examples"
     cp "$REPO_ROOT/README.md" "$WORK/README.md"
     cp "$REPO_ROOT"/examples/*.yml "$WORK/examples/"
+    mkdir -p "$WORK/site" "$WORK/docs"
+    cp "$REPO_ROOT"/docs/*.md "$WORK/docs/"
+    cp "$REPO_ROOT/site/sitekit.config.json" "$WORK/site/"
 }
 
 # Run the validator the way CI does, on the files in $WORK.
@@ -319,7 +322,8 @@ EOF
     local tags doc
     tags=$(git -C "$REPO_ROOT" tag -l 'v3' 'v3.*')
     [ -z "$tags" ] || {
-        for doc in README.md docs/README.md docs/recipes.md docs/migration-v2-to-v3.md docs/testing.md examples/README.md; do
+        for doc in README.md examples/README.md "$REPO_ROOT"/docs/*.md; do
+            doc=${doc#"$REPO_ROOT"/}
             if grep -q 'after the v3 release' "$REPO_ROOT/$doc"; then
                 echo "$doc still says that @v3 is not released, and the tag exists: $tags" >&2
                 return 1
@@ -329,5 +333,58 @@ EOF
             echo "SECURITY.md still says that v3 is not released, and the tag exists: $tags" >&2
             return 1
         fi
+        # The home page of the docs site says "in development" in the same way.
+        if grep -q 'in development' "$REPO_ROOT/site/sitekit.config.json"; then
+            echo "site/sitekit.config.json still says that v3 is in development, and the tag exists: $tags" >&2
+            return 1
+        fi
     }
+}
+
+# --- the pages of the docs site ----------------------------------------------------------
+
+@test "the pages of the docs site, their reference table and the site config pass" {
+    run python3 "$VALIDATOR" --tables "$REPO_ROOT/docs/reference.md" --site-config "$REPO_ROOT/site/sitekit.config.json" \
+        --require-modes "$REPO_ROOT/docs/getting-started.md" "$REPO_ROOT"/docs/mode-*.md \
+        "$REPO_ROOT/docs/example-workflows.md" "$REPO_ROOT/docs/breaking-changes.md"
+    [ "$status" -eq 0 ]
+    assert_contains "0 errors" || return 1
+    # The one skipped block is the v2 "stay on v2" snippet of the breaking changes page.
+    assert_contains "1 skipped" || return 1
+}
+
+@test "mutation: a made up input in a page of the docs site fails the check" {
+    add_input_to_first_action_step "$WORK/docs/mode-check.md" "bogus-input: true"
+    run python3 "$VALIDATOR" "$WORK/docs/mode-check.md"
+    [ "$status" -ne 0 ]
+    assert_contains "input 'bogus-input' does not exist in action.yml" || return 1
+}
+
+@test "mutation: a getting started page without persist-credentials false fails the check" {
+    delete_first_line "$WORK/docs/getting-started.md" "persist-credentials: false # the build cannot"
+    run python3 "$VALIDATOR" "$WORK/docs/getting-started.md"
+    [ "$status" -ne 0 ]
+    assert_contains "persist-credentials: false" || return 1
+}
+
+@test "mutation: a changed default in the generated reference table fails the check" {
+    replace_first_line "$WORK/docs/reference.md" '| `node-version` |' '| `node-version` | `20` |'
+    run python3 "$VALIDATOR" --tables "$WORK/docs/reference.md" "$REPO_ROOT/examples/quick-start.yml"
+    [ "$status" -ne 0 ]
+    assert_contains "input 'node-version' shows default '20', action.yml has '24'" || return 1
+}
+
+@test "mutation: an install command of the home page at @v2 fails the check" {
+    replace_first_line "$WORK/site/sitekit.config.json" '"installCommand"' '    "installCommand": "uses: miguelcolmenares/npm-auto-build@v2",'
+    run python3 "$VALIDATOR" --site-config "$WORK/site/sitekit.config.json" "$REPO_ROOT/examples/quick-start.yml"
+    [ "$status" -ne 0 ]
+    assert_contains "must end in @v3, @main or a 40 character commit SHA" || return 1
+}
+
+@test "mutation: a home page without the card of a mode fails the check" {
+    replace_first_line "$WORK/site/sitekit.config.json" '"eyebrow": "mode: build"' '      "eyebrow": "mode: deploy",'
+    run python3 "$VALIDATOR" --site-config "$WORK/site/sitekit.config.json" "$REPO_ROOT/examples/quick-start.yml"
+    [ "$status" -ne 0 ]
+    assert_contains "no card with the eyebrow 'mode: build'" || return 1
+    assert_contains "'mode: deploy' is not one of the modes" || return 1
 }
