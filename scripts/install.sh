@@ -21,8 +21,9 @@ main() {
         return
     fi
 
-    local pm flags=()
-    pm=$(nab_resolve_package_manager)
+    local flags=()
+    nab_resolve_package_manager
+    local pm=$NAB_RESOLVED_PM
     if [ "${NAB_IGNORE_SCRIPTS:-false}" = "true" ]; then
         flags+=(--ignore-scripts)
     fi

@@ -37,8 +37,8 @@ main() {
         die "Script '$command' is not defined in package.json (working-directory '${NAB_WORKDIR:-.}')."
     fi
 
-    local pm
-    pm=$(nab_resolve_package_manager)
+    nab_resolve_package_manager
+    local pm=$NAB_RESOLVED_PM
     log_info "Running the build: $pm run $command"
     run_without_token "$pm" run "$command"
 

@@ -22,12 +22,15 @@ mode_issue() {
     esac
 }
 
-# A value for a boolean input: prints "true" or "false", or fails.
-normalize_bool() {
+# Functions below that return a value set a variable instead of printing it. A die
+# inside $(...) would lose its error message, because the substitution captures it.
+
+# A boolean input: sets BOOL_VALUE to "true" or "false", or fails.
+parse_bool() {
     local name=$1 value
     value=$(nab_lower "$2")
     case "$value" in
-        true | false) printf '%s' "$value" ;;
+        true | false) BOOL_VALUE=$value ;;
         *) die "Input '$name' must be 'true' or 'false', got '$2'." ;;
     esac
 }
@@ -62,7 +65,7 @@ trim() {
     printf '%s' "$value"
 }
 
-# Validate the newline list of output paths and print it normalized (one per line).
+# Validate the newline list of output paths. Sets PATHS_VALUE, one entry per line.
 normalize_paths() {
     local raw=$1 line entry out="" count=0 max_entries=50
     # Drop carriage returns from CRLF values, then walk the lines.
@@ -89,19 +92,18 @@ normalize_paths() {
         fi
         out="${out}${entry}"$'\n'
     done <<<"$raw"
-    # Remove the final newline: the caller adds its own.
-    printf '%s' "${out%$'\n'}"
+    PATHS_VALUE=${out%$'\n'}
 }
 
 main() {
     local mode=${INPUT_MODE:-commit}
     local workdir=${INPUT_WORKING_DIRECTORY:-.}
-    local command=${INPUT_COMMAND:-build}
+    local command=${INPUT_COMMAND-build}
     local install_command=${INPUT_INSTALL_COMMAND:-}
     local package_manager=${INPUT_PACKAGE_MANAGER:-auto}
     local node_version=${INPUT_NODE_VERSION:-24}
     local node_version_file=${INPUT_NODE_VERSION_FILE:-}
-    local paths=${INPUT_PATHS:-dist}
+    local paths=${INPUT_PATHS-dist}
     local ignore_scripts=${INPUT_IGNORE_SCRIPTS:-false}
     local upload_diff=${INPUT_UPLOAD_DIFF:-true}
     local auto_merge=${INPUT_AUTO_MERGE:-false}
@@ -109,7 +111,8 @@ main() {
     # v2 aliases. A v3 input that was moved away from its default wins over the alias.
     if [ -n "${INPUT_BUILD_ONLY:-}" ]; then
         log_warn "Input 'build-only' is a v2 name. Use 'mode: build' instead."
-        if [ "$(normalize_bool build-only "$INPUT_BUILD_ONLY")" = "true" ]; then
+        parse_bool build-only "$INPUT_BUILD_ONLY"
+        if [ "$BOOL_VALUE" = "true" ]; then
             if [ "$mode" = "commit" ]; then
                 mode='build'
             else
@@ -119,7 +122,8 @@ main() {
     fi
     if [ -n "${INPUT_CREATE_PR:-}" ]; then
         log_warn "Input 'create-pr' is a v2 name. Use 'mode: pr' instead."
-        if [ "$(normalize_bool create-pr "$INPUT_CREATE_PR")" = "true" ]; then
+        parse_bool create-pr "$INPUT_CREATE_PR"
+        if [ "$BOOL_VALUE" = "true" ]; then
             if [ "$mode" = "commit" ]; then
                 mode='pr'
             else
@@ -194,14 +198,16 @@ main() {
         die "node-version '$node_version' has characters that are not allowed in a version."
     fi
 
-    ignore_scripts=$(normalize_bool ignore-scripts "$ignore_scripts")
-    normalize_bool upload-diff "$upload_diff" >/dev/null
-    normalize_bool auto-merge "$auto_merge" >/dev/null
+    parse_bool ignore-scripts "$ignore_scripts"
+    ignore_scripts=$BOOL_VALUE
+    parse_bool upload-diff "$upload_diff"
+    parse_bool auto-merge "$auto_merge"
     if [ "$ignore_scripts" = "true" ] && [ -n "$install_command" ]; then
         log_warn "Input 'ignore-scripts' has no effect when 'install-command' is set. Add the flag to your own command."
     fi
 
-    paths=$(normalize_paths "$paths")
+    normalize_paths "$paths"
+    paths=$PATHS_VALUE
 
     nab_write_env NAB_MODE "$mode"
     nab_write_env NAB_WORKDIR "$workdir"

@@ -76,23 +76,25 @@ nab_enter_workdir() {
     [ -f package.json ] || die "package.json not found in working-directory '$dir'."
 }
 
-# Print the package manager to use: npm, yarn or pnpm. Run it inside the project
-# directory. Issue #6 extends this (corepack, yarn berry, packageManager field).
+# Pick the package manager: sets NAB_RESOLVED_PM to npm, yarn or pnpm. Run it inside
+# the project directory. It sets a variable instead of printing, so that a die is
+# not swallowed by $(...). Issue #6 extends this (corepack, yarn berry, packageManager).
+# shellcheck disable=SC2034
 nab_resolve_package_manager() {
     local requested=${NAB_PACKAGE_MANAGER:-auto}
     case "$requested" in
         npm | yarn | pnpm)
-            printf '%s' "$requested"
+            NAB_RESOLVED_PM=$requested
             ;;
         auto)
             if [ -f package-lock.json ]; then
-                printf 'npm'
+                NAB_RESOLVED_PM=npm
             elif [ -f yarn.lock ]; then
-                printf 'yarn'
+                NAB_RESOLVED_PM=yarn
             elif [ -f pnpm-lock.yaml ]; then
-                printf 'pnpm'
+                NAB_RESOLVED_PM=pnpm
             else
-                printf 'npm'
+                NAB_RESOLVED_PM=npm
             fi
             ;;
         *)
