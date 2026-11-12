@@ -1,0 +1,23 @@
+# Mode check: fail a pull request when the committed build output is stale.
+#
+# The action builds, compares the build output with the checked out commit and fails
+# when a build file differs, is deleted or is new. It pushes nothing and reads no token,
+# so the job needs only contents: read and it also works for pull requests from forks.
+name: Check the build
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: miguelcolmenares/npm-auto-build@v3
+        with:
+          mode: check

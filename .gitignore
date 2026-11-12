@@ -44,3 +44,6 @@ Thumbs.db
 # Fixture output of the tests
 tests/fixture/dist/
 tests/fixture/node_modules/
+
+# Drawn by the docs workflow with social-card-action
+site/public/social.png

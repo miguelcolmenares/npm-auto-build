@@ -1,0 +1,27 @@
+# Mode build: test that the project builds, with nothing pushed.
+#
+# The action installs, builds and checks that every path of `paths` exists after the
+# build. It needs no write permission and reads no token. `build:prod`, `dist` and
+# `types` are examples: use the script and the folders of your project.
+name: Build
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: miguelcolmenares/npm-auto-build@v3
+        with:
+          mode: build
+          command: build:prod
+          paths: |
+            dist
+            types

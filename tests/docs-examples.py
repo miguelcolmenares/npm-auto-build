@@ -20,6 +20,9 @@ With --tables FILE it also checks that the inputs and outputs tables of that Mar
 list exactly what action.yml declares, with the same defaults. With --require-modes it
 fails when the files together do not show every mode.
 
+With --site-config FILE it checks the config of the docs site: the install command of the home
+page must be a use of this action at a valid reference, and the feature cards must be one per mode.
+
 A snippet that is on purpose not a v3 example (for example the v2 "before" of the migration
 guide) is skipped when the line before its fence is the marker below. Skips are counted
 and printed.
@@ -326,12 +329,37 @@ def check_tables(checker, action, path):
         checker.errors.append(f"{path}: the outputs table lists '{name}', which action.yml does not declare.")
 
 
+def check_site_config(checker, path):
+    """The home page of the docs site: its install snippet and its four mode cards."""
+    import json
+
+    with open(path, encoding="utf-8") as handle:
+        config = json.load(handle)
+    snippet = Snippet(path, 1, "", False)
+    command = (config.get("site") or {}).get("installCommand", "")
+    try:
+        step = yaml.safe_load("- " + command)[0] if command else None
+    except yaml.YAMLError:
+        step = None
+    if not isinstance(step, dict) or str(step.get("uses", "")).split("@", 1)[0] != ACTION_NAME:
+        checker.error(snippet, f"site.installCommand '{command}' must be a 'uses:' line of {ACTION_NAME}.")
+    else:
+        checker.check_action_step(snippet, step)
+    cards = {str(card.get("eyebrow", "")) for card in config.get("features", [])}
+    for mode in MODES:
+        if f"mode: {mode}" not in cards:
+            checker.error(snippet, f"the feature cards have no card with the eyebrow 'mode: {mode}'.")
+    for card in sorted(cards - {f"mode: {mode}" for mode in MODES}):
+        checker.error(snippet, f"the feature card '{card}' is not one of the modes.")
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     parser = argparse.ArgumentParser(description="Check the YAML examples of the docs against action.yml.")
     parser.add_argument("files", nargs="+")
     parser.add_argument("--action", default=os.path.join(here, "..", "action.yml"))
     parser.add_argument("--tables", help="Markdown file whose inputs and outputs tables must match action.yml")
+    parser.add_argument("--site-config", help="sitekit.config.json of the docs site, checked against action.yml")
     parser.add_argument("--require-modes", action="store_true", help="the files together must show every mode")
     parser.add_argument("--dump", help="write each full workflow snippet to this directory, for actionlint")
     args = parser.parse_args()
@@ -360,6 +388,8 @@ def main():
                     out.write(snippet.text + "\n")
     if args.tables:
         check_tables(checker, action, args.tables)
+    if args.site_config:
+        check_site_config(checker, args.site_config)
     if args.require_modes:
         for mode in MODES:
             if mode not in checker.modes_seen:

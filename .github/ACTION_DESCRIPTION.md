@@ -44,3 +44,5 @@ jobs:
 ```
 
 The examples use `@v3`. See the README for the inputs, the outputs and the other modes, and the migration guide if you come from v2.
+
+Documentation: https://miguelcolmenares.com/npm-auto-build/

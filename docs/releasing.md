@@ -130,7 +130,7 @@ Then check the acceptance of issue #9. The Marketplace page shows `v3.0.0` and t
 
 ### 7. The pull request after the release
 
-The docs promise `@v3` before it exists, in seven places. Once the tag exists they are false, so remove them now. The test `the docs stop saying that @v3 is not released once a v3 tag exists` fails in any clone that fetched the tag until you do.
+The docs promise `@v3` before it exists, in several places (`scripts/release-check.sh` prints each file). Once the tag exists they are false, so remove them now. The test `the docs stop saying that @v3 is not released once a v3 tag exists` fails in any clone that fetched the tag until you do.
 
 ```bash
 git switch main && git pull --ff-only
@@ -146,6 +146,8 @@ bash scripts/release-check.sh 3.0.0   # prints the TODO lines, they are the list
 | `docs/migration-v2-to-v3.md` | The sentence `The tag @v3 is available after the v3 release. Until then, ...`. |
 | `examples/README.md` | The same sentence. |
 | `docs/testing.md` | In the comment of the self-test step, `becomes ...@v3 after the v3 release` becomes `is ...@v3 for users`. |
+| `docs/getting-started.md`, `docs/faq.md`, `docs/breaking-changes.md`, `docs/example-workflows.md` | The same sentence in each of the site pages. `scripts/release-check.sh` lists every `docs/*.md` page that still has it. |
+| `site/sitekit.config.json` | Remove "in development" from `site.version` and from the home badge. |
 | `SECURITY.md` | The v3 row says `Supported`, with no "Not released yet". The v2 row says that v2 support ended with the release of v3.0.0. |
 
 Then, in this pull request, delete the section "Draft of the 3.0.0 release summary" below, which is history once the release is out. Run the whole suite and the check again:

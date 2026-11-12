@@ -8,6 +8,9 @@ Every file here is checked against `action.yml` by `tests/docs-examples.py`, in 
 
 | File | What it shows |
 |---|---|
+| [`quick-start.yml`](./quick-start.yml) | The smallest workflow: mode `commit` on pushes to `main`. |
+| [`check.yml`](./check.yml) | Mode `check` on pull requests: fail when the committed build output is stale. |
+| [`build.yml`](./build.yml) | Mode `build` on pull requests: test that the project builds, with nothing pushed. |
 | [`complete-workflow.yml`](./complete-workflow.yml) | Mode `check` on pull requests, and mode `commit` on pushes to `main`, in one workflow. |
 | [`monorepo.yml`](./monorepo.yml) | One job per package, each with its own `working-directory` and `paths`, pushed one after the other. |
 | [`protected-branch-pr.yml`](./protected-branch-pr.yml) | Mode `pr`: a bot branch and one pull request, for a branch that does not accept direct pushes. |
