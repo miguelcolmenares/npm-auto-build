@@ -38,6 +38,34 @@ make_repo() {
     git commit -q -m "initial build"
 }
 
+# The checks below are functions that return 1 on purpose. On bash 3.2 (macOS) a failing
+# "[[ ]]" or a "! command" in the middle of a test does not stop it, a function does.
+assert_has() {
+    case "$1" in
+        *"$2"*) return 0 ;;
+    esac
+    printf 'expected to find: %s\n' "$2" >&2
+    return 1
+}
+
+refute_has() {
+    case "$1" in
+        *"$2"*)
+            printf 'did not expect: %s\n' "$2" >&2
+            return 1
+            ;;
+    esac
+    return 0
+}
+
+refute_grep() {
+    if grep "$@" >/dev/null 2>&1; then
+        printf 'did not expect a match for: grep %s\n' "$*" >&2
+        return 1
+    fi
+    return 0
+}
+
 # The messages end with the list of files, so a test can look at the whole output.
 run_check() {
     run bash "$SCRIPTS/check.sh"
@@ -47,7 +75,7 @@ run_check() {
     run_check
     [ "$status" -eq 0 ]
     [ "$(output_value stale)" = "false" ]
-    [[ "$output" != *"::error::"* ]]
+    refute_has "$output" "::error::"
 }
 
 @test "a stale tracked file gives stale=true, exit 1, the file and the fix command" {
@@ -55,13 +83,13 @@ run_check() {
     run_check
     [ "$status" -eq 1 ]
     [ "$(output_value stale)" = "true" ]
-    [[ "$output" == *"::error::"* ]]
-    [[ "$output" == *"modified: dist/out.txt"* ]]
+    assert_has "$output" "::error::"
+    assert_has "$output" "modified: dist/out.txt"
     # The fresh file is not named.
-    [[ "$output" != *"dist/app.js"* ]]
-    [[ "$output" == *"working directory '.'"* ]]
-    [[ "$output" == *"run 'npm run build' in '.'"* ]]
-    [[ "$output" == *"commit the changed paths (dist)"* ]]
+    refute_has "$output" "dist/app.js"
+    assert_has "$output" "working directory '.'"
+    assert_has "$output" "run 'npm run build' in '.'"
+    assert_has "$output" "commit the changed paths (dist)"
 }
 
 @test "the error is one workflow command, the lines are escaped" {
@@ -69,7 +97,7 @@ run_check() {
     printf 'new\n' >dist/new.txt
     run_check
     [ "$(printf '%s\n' "$output" | grep -c '^::error::')" -eq 1 ]
-    [[ "$output" == *"%0A"* ]]
+    assert_has "$output" "%0A"
 }
 
 @test "a new untracked output file is stale" {
@@ -77,14 +105,14 @@ run_check() {
     run_check
     [ "$status" -eq 1 ]
     [ "$(output_value stale)" = "true" ]
-    [[ "$output" == *"untracked: dist/chunk.js"* ]]
+    assert_has "$output" "untracked: dist/chunk.js"
 }
 
 @test "a deleted tracked file is stale" {
     rm dist/app.js
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"deleted: dist/app.js"* ]]
+    assert_has "$output" "deleted: dist/app.js"
 }
 
 @test "a path that the build removed completely is stale, not an error about a missing path" {
@@ -92,8 +120,8 @@ run_check() {
     run_check
     [ "$status" -eq 1 ]
     [ "$(output_value stale)" = "true" ]
-    [[ "$output" == *"deleted: dist/out.txt"* ]]
-    [[ "$output" == *"deleted: dist/app.js"* ]]
+    assert_has "$output" "deleted: dist/out.txt"
+    assert_has "$output" "deleted: dist/app.js"
 }
 
 @test "a change that is staged but not committed is stale, HEAD is what counts" {
@@ -101,7 +129,7 @@ run_check() {
     git add dist/out.txt
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"modified: dist/out.txt"* ]]
+    assert_has "$output" "modified: dist/out.txt"
 }
 
 @test "an untracked output that .gitignore ignores is stale and the message says how to add it" {
@@ -111,8 +139,8 @@ run_check() {
     printf '{}\n' >dist/app.js.map
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"ignored: dist/app.js.map"* ]]
-    [[ "$output" == *"git add --force"* ]]
+    assert_has "$output" "ignored: dist/app.js.map"
+    assert_has "$output" "git add --force"
 }
 
 @test "a build directory that is ignored and was never committed is stale" {
@@ -124,8 +152,8 @@ run_check() {
     run_check
     [ "$status" -eq 1 ]
     [ "$(output_value stale)" = "true" ]
-    [[ "$output" == *"ignored: dist/out.txt"* ]]
-    [[ "$output" == *"ignored: dist/app.js"* ]]
+    assert_has "$output" "ignored: dist/out.txt"
+    assert_has "$output" "ignored: dist/app.js"
 }
 
 @test "a line ending difference alone is not stale, for every autocrlf setting" {
@@ -147,14 +175,14 @@ run_check() {
     printf 'built by the fixture, changed\r\n' >dist/out.txt
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"modified: dist/out.txt"* ]]
+    assert_has "$output" "modified: dist/out.txt"
 }
 
 @test "a change in trailing spaces is stale: only the carriage return is ignored" {
     printf 'built by the fixture  \n' >dist/out.txt
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"modified: dist/out.txt"* ]]
+    assert_has "$output" "modified: dist/out.txt"
 }
 
 @test "more than 50 files are capped in the message, files.txt keeps all of them" {
@@ -164,8 +192,8 @@ run_check() {
     done
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"60 file(s) differ"* ]]
-    [[ "$output" == *"and 10 more"* ]]
+    assert_has "$output" "60 file(s) differ"
+    assert_has "$output" "and 10 more"
     [ "$(printf '%s\n' "$output" | grep -o 'untracked: dist/chunk-' | wc -l | tr -d ' ')" -eq 50 ]
     [ "$(wc -l <"$DIFF_DIR/files.txt" | tr -d ' ')" -eq 60 ]
 }
@@ -177,7 +205,7 @@ run_check() {
     done
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" != *"more"* ]]
+    refute_has "$output" "more"
 }
 
 @test "the diff and the file list are written to RUNNER_TEMP/nab-check" {
@@ -199,8 +227,8 @@ run_check() {
     printf 'a different build\n' >dist/app.js
     run_check
     [ "$status" -eq 1 ]
-    ! grep -q 'dist/out.txt' "$DIFF_DIR/diff.patch"
-    ! grep -q 'dist/out.txt' "$DIFF_DIR/files.txt"
+    refute_grep -q 'dist/out.txt' "$DIFF_DIR/diff.patch"
+    refute_grep -q 'dist/out.txt' "$DIFF_DIR/files.txt"
 }
 
 @test "files from an earlier run are removed, a fresh run leaves the directory empty" {
@@ -235,9 +263,9 @@ run_check() {
     export NAB_PATHS=$'dist\nlib'
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"modified: lib/types.d.ts"* ]]
-    [[ "$output" != *"dist/out.txt"* ]]
-    [[ "$output" == *"(dist, lib)"* ]]
+    assert_has "$output" "modified: lib/types.d.ts"
+    refute_has "$output" "dist/out.txt"
+    assert_has "$output" "(dist, lib)"
 }
 
 @test "a single file path works as well as a directory" {
@@ -248,8 +276,8 @@ run_check() {
     printf 'y\n' >dist/app.js
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"dist/out.txt"* ]]
-    [[ "$output" != *"dist/app.js"* ]]
+    assert_has "$output" "dist/out.txt"
+    refute_has "$output" "dist/app.js"
 }
 
 @test "a working directory inside the repository: files are named from the repository root" {
@@ -261,9 +289,9 @@ run_check() {
     export NAB_WORKDIR=app
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"modified: app/dist/out.txt"* ]]
-    [[ "$output" == *"working directory 'app'"* ]]
-    [[ "$output" == *"run 'npm run build' in 'app'"* ]]
+    assert_has "$output" "modified: app/dist/out.txt"
+    assert_has "$output" "working directory 'app'"
+    assert_has "$output" "run 'npm run build' in 'app'"
 }
 
 @test "the fix command follows the lockfile and the command name" {
@@ -274,7 +302,7 @@ run_check() {
     export NAB_COMMAND=compile
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"run 'yarn run compile'"* ]]
+    assert_has "$output" "run 'yarn run compile'"
 }
 
 @test "a path that leaves the repository is refused" {
@@ -282,8 +310,8 @@ run_check() {
     export NAB_PATHS=../elsewhere
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::"* ]]
-    [[ "$output" == *"outside the repository"* ]]
+    assert_has "$output" "::error::"
+    assert_has "$output" "outside the repository"
     [ -z "$(output_value stale)" ]
 }
 
@@ -293,7 +321,7 @@ run_check() {
     export NAB_PATHS=../../repo-sibling
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"outside the repository"* ]]
+    assert_has "$output" "outside the repository"
 }
 
 @test "a path that goes up and stays inside the repository is accepted" {
@@ -311,29 +339,29 @@ run_check() {
     export NAB_PATHS=linked
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"outside the repository"* ]]
+    assert_has "$output" "outside the repository"
     export NAB_PATHS=linked/deep
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"outside the repository"* ]]
+    assert_has "$output" "outside the repository"
 }
 
 @test "an absolute path and an option-like path are refused" {
     export NAB_PATHS=/etc
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"relative"* ]]
+    assert_has "$output" "relative"
     export NAB_PATHS=--stat
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"must not start with '-'"* ]]
+    assert_has "$output" "must not start with '-'"
 }
 
 @test "a path that does not exist and is not in HEAD is an error, not stale" {
     export NAB_PATHS=build
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"path 'build' does not exist"* ]]
+    assert_has "$output" "path 'build' does not exist"
     [ -z "$(output_value stale)" ]
 }
 
@@ -342,7 +370,7 @@ run_check() {
     export NAB_PATHS='dist/*'
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"does not exist"* ]]
+    assert_has "$output" "does not exist"
 }
 
 @test "outside a git work tree it fails with a clear message" {
@@ -350,7 +378,7 @@ run_check() {
     cd "$BATS_TEST_TMPDIR/plain"
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"not inside a git work tree"* ]]
+    assert_has "$output" "not inside a git work tree"
 }
 
 @test "a repository without a commit fails with a clear message" {
@@ -359,7 +387,7 @@ run_check() {
     git init -q .
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"no commit yet"* ]]
+    assert_has "$output" "no commit yet"
 }
 
 @test "no token variable is needed: the check passes and fails with none in the environment" {
@@ -373,7 +401,7 @@ run_check() {
         NAB_PATHS=dist RUNNER_TEMP="$RUNNER_TEMP" GITHUB_OUTPUT="$GITHUB_OUTPUT" \
         bash "$SCRIPTS/check.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"modified: dist/out.txt"* ]]
+    assert_has "$output" "modified: dist/out.txt"
 }
 
 @test "no token is read: a token in the environment never reaches the output or the files" {
@@ -382,8 +410,8 @@ run_check() {
     printf 'x\n' >dist/out.txt
     run_check
     [ "$status" -eq 1 ]
-    [[ "$output" != *"$FAKE_TOKEN"* ]]
-    ! grep -rq "$FAKE_TOKEN" "$DIFF_DIR" "$GITHUB_OUTPUT"
+    refute_has "$output" "$FAKE_TOKEN"
+    refute_grep -rq "$FAKE_TOKEN" "$DIFF_DIR" "$GITHUB_OUTPUT"
 }
 
 @test "the script and the check steps of the action name no token" {
@@ -392,9 +420,9 @@ run_check() {
     local steps
     steps=$(awk '/- name: Check the build output/ {on=1} /^branding:/ {on=0} on' "$ACTION")
     # The awk range holds both check steps, so an empty range cannot pass.
-    [[ "$steps" == *"scripts/check.sh"* ]]
-    [[ "$steps" == *"upload-artifact"* ]]
-    ! grep -Eq 'inputs\.(github-)?token|github\.token|secrets\.|GITHUB_TOKEN|GH_TOKEN' <<<"$steps"
+    assert_has "$steps" "scripts/check.sh"
+    assert_has "$steps" "upload-artifact"
+    refute_grep -Eq 'inputs\.(github-)?token|github\.token|secrets\.|GITHUB_TOKEN|GH_TOKEN' <<<"$steps"
 }
 
 @test "standalone: without GITHUB_OUTPUT and RUNNER_TEMP it prints the result" {
@@ -411,7 +439,7 @@ run_check() {
     local dir
     dir=$(printf '%s\n' "$output" | sed -n 's|^\[INFO\] The diff is in \(.*\)/diff.patch and.*|\1|p')
     [ -f "$dir/diff.patch" ]
-    [[ "$dir" != "$REPO"* ]]
+    refute_has "$dir" "$REPO"
     rm -rf "$dir"
 }
 
@@ -451,8 +479,8 @@ run_check() {
     [ "$status" -eq 0 ]
     run bash "$SCRIPTS/check.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"modified: dist/out.txt"* ]]
-    [[ "$output" == *"run 'npm run build'"* ]]
+    assert_has "$output" "modified: dist/out.txt"
+    assert_has "$output" "run 'npm run build'"
 }
 
 @test "action.yml: the check step runs only in mode check, after the build, and stale points to it" {
@@ -468,11 +496,11 @@ run_check() {
 @test "action.yml: the diff upload is pinned, runs after a failed check and keeps the diff 7 days" {
     local step
     step=$(awk '/- name: Upload the diff/ {on=1} /^branding:/ {on=0} on' "$ACTION")
-    [[ "$step" == *"if: always() && steps.validate.outputs.mode == 'check' && inputs.upload-diff == 'true' && steps.check.outputs.stale == 'true'"* ]]
-    [[ "$step" == *"uses: actions/upload-artifact@"* ]]
+    assert_has "$step" "if: always() && steps.validate.outputs.mode == 'check' && inputs.upload-diff == 'true' && steps.check.outputs.stale == 'true'"
+    assert_has "$step" "uses: actions/upload-artifact@"
     grep -Eq 'uses: actions/upload-artifact@[0-9a-f]{40} # v[0-9]+\.[0-9]+\.[0-9]+$' <<<"$step"
-    [[ "$step" == *"name: npm-auto-build-stale-diff"* ]]
-    [[ "$step" == *"path: \${{ runner.temp }}/nab-check"* ]]
-    [[ "$step" == *"if-no-files-found: ignore"* ]]
-    [[ "$step" == *"retention-days: 7"* ]]
+    assert_has "$step" "name: npm-auto-build-stale-diff"
+    assert_has "$step" "path: \${{ runner.temp }}/nab-check"
+    assert_has "$step" "if-no-files-found: ignore"
+    assert_has "$step" "retention-days: 7"
 }
