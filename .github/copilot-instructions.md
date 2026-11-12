@@ -14,6 +14,7 @@ This is a **GitHub Action** that builds an npm project and commits the build out
 - `scripts/commit.sh` - Mode `commit`: stages the `paths`, commits and pushes to the checked out branch. One of the two scripts that get the token, and it gives it to `git fetch` and `git push` only
 - `scripts/pr.sh` - Mode `pr`: commits the build output to a bot branch, force-pushes it with a lease (only that branch, never the base, a protected name or a branch it did not make) and keeps one pull request up to date with `gh`. The other script that gets the token: `git ls-remote`, `git fetch` and `git push` through `GIT_CONFIG_*`, and `gh` as `GH_TOKEN` for one command
 - `scripts/check.sh` - Compares the build output with `HEAD` (mode `check`), reads no token, runs without GitHub too
+- `scripts/release-check.sh` - Maintainer tool, not part of the action: checks that a release is ready (before the tag) or that the tagged commit is good (in `release.yml`). Read only. `docs/releasing.md` is the procedure
 - `tests/` - bats tests and the fixture project in `tests/fixture/`
 - `examples/` - Complete v3 workflow files, checked against `action.yml` by `tests/docs-examples.py`
 - `docs/recipes.md` and `docs/migration-v2-to-v3.md` - Setups and the v2 to v3 changes, checked by the same script
@@ -77,17 +78,8 @@ if: github.event_name == 'push'          # mode: commit for main
 - The Marketplace requires a public repository, a single `action.yml` or `action.yaml` at the root and a unique `name` ([requirements](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/publish-in-github-marketplace)). Workflow files under `.github/workflows/` are allowed, and the repository has them for CI.
 - All examples should use the action via the marketplace reference, not local paths
 
-**Major Version Tag Management:**
-After each release, update the major version tag to point to the latest version:
-```bash
-# For v1.x.x releases - update v1 tag
-git tag -f v1 v1.2.0
-git push -f origin v1
-
-# For v2.x.x releases - create/update v2 tag  
-git tag -f v2 v2.0.0
-git push -f origin v2
-```
+**Releases and the major version tag:**
+`docs/releasing.md` is the procedure. In short: a release pull request (CHANGELOG, version), `scripts/release-check.sh <version>` on `main`, an annotated tag `git tag -a vX.Y.Z -m vX.Y.Z` pushed by name, and `.github/workflows/release.yml`, which makes a draft release and moves the floating tag (`v3`). Never push a tag, publish a release or publish to the Marketplace without the maintainer's go (issue #9). `v2` and `v2.1.2` are never moved. Never move an exact version tag, and use `--force-with-lease` only for the floating tag.
 
 **GitHub CLI Usage:**
 Always disable pager when using `gh` to prevent terminal hanging:

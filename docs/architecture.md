@@ -36,6 +36,7 @@ The files that the build writes are the only thing that crosses from zone 1 to z
 | `scripts/commit.sh` | 2 | Commit | Stages the `paths` entries, commits with the configured author and pushes to the checked out branch. | Put the token on a command line, in a URL, in a file or in the output. Force-push. Run the project's code. |
 | `scripts/pr.sh` | 2 | Pull request | Commits the build output to a bot branch, pushes it with a lease and opens the pull request, or updates the one that exists. | Overwrite a branch that it did not make, push to the base branch, put the token on a command line or in a file. |
 | `scripts/git-lib.sh` | 2 | none | Helpers that `commit.sh` and `pr.sh` source: the credential header, `nab_git_remote` and the classifier of push failures. | Be used by a script of zone 1. Print the token. |
+| `scripts/release-check.sh` | maintainer | none (run by a person before a release, and by `release.yml` at tag time) | Reads the repository, the remote and the GitHub API and prints `PASS`, `FAIL` or `SKIP` for each release item. See [releasing](releasing.md). | Change a file, a branch, a tag, a release or a setting. Read a token variable. Run the project's code. Be run by `action.yml`. |
 | `scripts/lib.sh` | both | none | Helpers that the other scripts source: logging, env file writers, package manager detection, `run_without_token`. | Read or print a token. It only lists the variable names that `run_without_token` removes. |
 
 ## The rules the tests enforce
@@ -46,15 +47,20 @@ Each rule below has a test in `tests/architecture.bats`. A rule counts only afte
 |---|---|
 | `install.sh` and `build.sh` never name a token variable. | The six names above, plus `NAB_TOKEN`, `ACTIONS_ID_TOKEN_REQUEST_URL` and `secrets.`, are searched in the code lines. Comments are skipped. |
 | Only the allowlist scripts name a token variable. | The allowlist is at the top of the test file: `commit.sh`, `pr.sh` and the shared helper `git-lib.sh`. `lib.sh` may name the variables only on the `-u` lines of `run_without_token`. |
-| Only the allowlist scripts run `git push`, `git fetch`, `git pull`, `git clone` or `git ls-remote`. | The same search, for the git commands that talk to a remote and for the `nab_git_remote` wrapper. A new script that needs the remote must be added to the allowlist, and this page must say why. |
-| No script calls `curl`, `wget`, `ssh`, `npx` or another network tool, and only the allowlist scripts call `gh`. | The package manager is the only way out of the machine for zone 1. In zone 2, `pr.sh` uses `gh` for the pull request. |
+| Only the allowlist scripts run `git push`, `git fetch`, `git pull`, `git clone` or `git ls-remote`. A maintainer tool may run `git ls-remote` to read, and nothing else of this list. | The same search, for the git commands that talk to a remote and for the `nab_git_remote` wrapper. A new script that needs the remote must be added to the allowlist, and this page must say why. |
+| No script calls `curl`, `wget`, `ssh`, `npx` or another network tool, and only the allowlist scripts and the maintainer tools call `gh`. | The package manager is the only way out of the machine for zone 1. In zone 2, `pr.sh` uses `gh` for the pull request. |
 | `install.sh` and `build.sh` start the project's code only through `run_without_token`, and do not run git. | A code line must not start with a package manager, a shell or `eval`. |
+| A maintainer tool (`release-check.sh`) is not named in `action.yml` and cannot write. | `action.yml` is searched for its name. Its code lines are searched for `git push`, `commit`, `tag`, `fetch` and the other git commands that change something, for `gh release`, `gh pr` and the other `gh` commands that create or edit something, and for `gh api` with a method or a field. A control test runs the same search on lines that break the rule. |
 | No script turns off `errexit`, `nounset` or `pipefail`, and none installs a tool for the whole machine or touches the home directory or a system path. | A search for `set +e`, `npm install -g`, `git config --global`, `$HOME`, `~/` and `/etc/`. |
 | No `run:` block of `action.yml` holds a `${{ }}` expression. | A block form such as `run: \|` is read too. A value reaches a script only through `env:`. |
 | Every script has a header with `May do:` and `May not:`, or says it is sourced. | The comment block under the shebang. |
 | Every script is named in the docs and has a row in the table above, and every script path in the docs exists. | The docs are searched for `scripts/<name>`. |
 
 Rules that other test files already hold are not repeated: every script starts with `set -euo pipefail` (`tests/action.bats`), the token is read in one step of `action.yml` only (`tests/action.bats`), and the token never reaches an install or build script at run time (`tests/token.bats`, `tests/commit.bats`). Shellcheck runs in CI.
+
+## Maintainer tools and the release workflow
+
+`scripts/release-check.sh` is not part of the action. It is for the person who releases, and `.github/workflows/release.yml` runs it at tag time. It sits outside the two zones: `action.yml` never runs it, it names no token variable, and it only reads. It is the one script, besides `pr.sh`, that calls `gh`, and the only one that calls `git ls-remote` without being on the token allowlist. The tests above give it a list of its own (`MAINTAINER_SCRIPTS` in `tests/architecture.bats`) so that this is a stated exception and not a hole in the rules: the list allows `gh` and `git ls-remote`, and a test fails when the script can write. The release workflow has its own permissions per job, described in [releasing](releasing.md#the-release-workflow).
 
 ## Limits
 

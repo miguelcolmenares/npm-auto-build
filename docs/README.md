@@ -10,6 +10,7 @@ Welcome to the comprehensive documentation for NPM Auto Build Action.
 - **[Main README](../README.md)** - Getting started and basic usage
 - **[Recipes](recipes.md)** - Protected branches, tag and pull request events, monorepos, private registries, pnpm and yarn, Bitbucket
 - **[Migration guide](migration-v2-to-v3.md)** - From v2 to v3: renamed inputs, breaking changes, staying on `@v2`
+- **[Releasing](releasing.md)** - The release procedure for v3.0.0 and later: checklist, tags, the release workflow, the Marketplace, rollback. `scripts/release-check.sh` checks that a release is ready
 
 ## 🎯 Quick Links
 

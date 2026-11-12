@@ -307,19 +307,27 @@ EOF
     [ "$status" -ne 0 ]
 }
 
+# bats test_tags=post-release
 @test "the docs stop saying that @v3 is not released once a v3 tag exists" {
-    # The docs say "@v3 is available after the v3 release". That sentence is a promise with no
-    # date, so it must go with the release. This test fails once a v3 tag exists and the sentence
-    # is still in a doc. The CHANGELOG is history and is not checked. A shallow clone without
-    # tags cannot see the tag, so the check runs where the tags are fetched, such as a local clone.
+    # The docs say "@v3 is available after the v3 release", and SECURITY.md says "Not released yet". Those
+    # sentences are promises with no date, so they must go with the release (docs/releasing.md lists them,
+    # and scripts/release-check.sh prints them as TODO lines). This test fails once a v3 tag exists and a
+    # sentence is still in a doc. The CHANGELOG is history and is not checked. A shallow clone without tags
+    # cannot see the tag, so the check runs where the tags are fetched, such as a local clone. The release
+    # workflow runs at the tag, before the docs are changed, so it leaves this test out with its tag
+    # `post-release`: `bats --filter-tags '!post-release' tests/`.
     local tags doc
     tags=$(git -C "$REPO_ROOT" tag -l 'v3' 'v3.*')
     [ -z "$tags" ] || {
-        for doc in README.md docs/README.md docs/recipes.md docs/migration-v2-to-v3.md examples/README.md; do
-            if grep -q 'is available after the v3 release' "$REPO_ROOT/$doc"; then
+        for doc in README.md docs/README.md docs/recipes.md docs/migration-v2-to-v3.md docs/testing.md examples/README.md; do
+            if grep -q 'after the v3 release' "$REPO_ROOT/$doc"; then
                 echo "$doc still says that @v3 is not released, and the tag exists: $tags" >&2
                 return 1
             fi
         done
+        if grep -q 'Not released yet' "$REPO_ROOT/SECURITY.md"; then
+            echo "SECURITY.md still says that v3 is not released, and the tag exists: $tags" >&2
+            return 1
+        fi
     }
 }

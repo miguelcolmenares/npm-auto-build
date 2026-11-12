@@ -1,0 +1,197 @@
+name: Release
+
+# A tag `v3.x.y` makes the release. The workflow cannot run until someone pushes such a tag, and nothing
+# else starts it. The procedure, who does what and the rollback are in docs/releasing.md. A later major
+# version (v4) needs its own tag pattern here, because this one moves the floating tag `v3`.
+#
+# What it does, in this order, and each job needs the one before it:
+#   verify      the tag, the CHANGELOG, the version files, SECURITY.md and action.yml are in order
+#               (scripts/release-check.sh --tag), and the bats tests pass.
+#   provenance  makes a source archive with `git archive` and attests its build provenance.
+#   release     makes the same archive again and compares it with the attested one, creates the GitHub
+#               release as a DRAFT (the notes are the CHANGELOG section of the version), and moves the
+#               floating tag `v3` to the release commit.
+# The release is a draft on purpose: the maintainer publishes it from the release form, where the
+# Marketplace box is. The workflow never publishes to the Marketplace.
+on:
+  push:
+    tags: ["v3.*.*"]
+
+# Nothing by default. Each job asks for what it needs, and only the release job can write.
+permissions: {}
+
+# One release at a time, and a started release is never cancelled half way.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      # Bats and PyYAML come from the Ubuntu archive, as in ci.yml.
+      - name: Install bats
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats python3-yaml
+
+      # The tag must be the version of the CHANGELOG, package.json and package-lock.json, and the
+      # tagged commit must be on main. The token only reads (contents: read) for `gh api`.
+      - name: Check that the tag is a good release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          bash scripts/release-check.sh --tag "${TAG#v}"
+
+      # One test waits for the release itself: it fails while a v3 tag exists and the docs still say that
+      # @v3 is not released. Those sentences are removed after the release, so the test has the tag
+      # `post-release` and this run leaves it out.
+      - name: Run the bats tests
+        run: bats --print-output-on-failure --filter-tags '!post-release' tests/
+
+  provenance:
+    name: provenance
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # the OIDC token that signs the attestation
+      attestations: write # stores the attestation of the archive
+    outputs:
+      archive: ${{ steps.archive.outputs.archive }}
+      sha256: ${{ steps.archive.outputs.sha256 }}
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The same command runs again in the release job, and the two digests must be equal.
+      - name: Make the source archive
+        id: archive
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          archive="npm-auto-build-${version}.tar.gz"
+          git archive --format=tar --prefix="npm-auto-build-${version}/" HEAD | gzip -n > "${RUNNER_TEMP}/${archive}"
+          sha256=$(sha256sum "${RUNNER_TEMP}/${archive}" | cut -d ' ' -f 1)
+          echo "archive=${archive}" >> "$GITHUB_OUTPUT"
+          echo "sha256=${sha256}" >> "$GITHUB_OUTPUT"
+
+      # No registry, so no storage record. The attestation is stored by GitHub, and
+      # `gh attestation verify <archive> --repo <owner>/<repo>` checks it.
+      - name: Attest the build provenance of the archive
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/${{ steps.archive.outputs.archive }}
+          create-storage-record: false
+
+  release:
+    name: release
+    needs: [verify, provenance]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # creates the draft release and moves the floating tag
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Make the archive again and compare it with the attested one
+        env:
+          TAG: ${{ github.ref_name }}
+          ARCHIVE: ${{ needs.provenance.outputs.archive }}
+          EXPECTED_SHA256: ${{ needs.provenance.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          git archive --format=tar --prefix="npm-auto-build-${version}/" HEAD | gzip -n > "${RUNNER_TEMP}/${ARCHIVE}"
+          sha256=$(sha256sum "${RUNNER_TEMP}/${ARCHIVE}" | cut -d ' ' -f 1)
+          if [ "$sha256" != "$EXPECTED_SHA256" ]; then
+            echo "::error::The archive has the digest ${sha256}, the attested one has ${EXPECTED_SHA256}."
+            exit 1
+          fi
+          echo "The archive matches the attested digest ${sha256}."
+
+      # A draft, with the CHANGELOG section as the notes. `--verify-tag` fails when the tag is not on the
+      # remote. A second run of the same tag finds the release and does nothing.
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          ARCHIVE: ${{ needs.provenance.outputs.archive }}
+          SHA256: ${{ needs.provenance.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "::notice::The release ${TAG} already exists, so there is nothing to create."
+            exit 0
+          fi
+          version="${TAG#v}"
+          notes="${RUNNER_TEMP}/notes.md"
+          awk -v v="$version" '/^## \[/ { p = (index($0, "[" v "]") == 4); next } p' CHANGELOG.md > "$notes"
+          if [ ! -s "$notes" ]; then
+            echo "::error::CHANGELOG.md has no section for ${version}"
+            exit 1
+          fi
+          {
+            printf '\n---\n\n'
+            printf 'Source archive: %s, SHA-256 %s.\n\n' "$ARCHIVE" "$SHA256"
+            printf 'Check the build provenance with: gh attestation verify %s --repo %s\n' "$ARCHIVE" "$GH_REPO"
+          } >> "$notes"
+          flags=(--draft)
+          case "$version" in *-*) flags+=(--prerelease) ;; esac
+          gh release create "$TAG" "${RUNNER_TEMP}/${ARCHIVE}" --verify-tag --title "$TAG" --notes-file "$notes" "${flags[@]}"
+
+      # `v3` moves only for a stable tag that is the highest v3 tag, so a patch for an old version or a
+      # release candidate never moves it back. It is a lightweight tag, set with the API, so the job
+      # needs no git credentials. A ref update with the workflow token starts no other workflow.
+      - name: Move the floating major tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          case "$version" in
+            *-*)
+              echo "::notice::${TAG} is a pre-release, so the floating tag stays where it is."
+              exit 0
+              ;;
+          esac
+          major="${version%%.*}"
+          highest=$(gh api --paginate "repos/${GH_REPO}/git/matching-refs/tags/v${major}." --jq '.[].ref' \
+            | sed 's#^refs/tags/##' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          if [ "$highest" != "$TAG" ]; then
+            echo "::notice::${TAG} is not the highest v${major} tag (${highest}), so the floating tag stays where it is."
+            exit 0
+          fi
+          sha=$(git rev-parse HEAD)
+          if gh api "repos/${GH_REPO}/git/ref/tags/v${major}" > /dev/null 2>&1; then
+            gh api --method PATCH "repos/${GH_REPO}/git/refs/tags/v${major}" -f sha="$sha" -F force=true > /dev/null
+            echo "Moved v${major} to ${sha}."
+          else
+            gh api --method POST "repos/${GH_REPO}/git/refs" -f ref="refs/tags/v${major}" -f sha="$sha" > /dev/null
+            echo "Created v${major} at ${sha}."
+          fi
