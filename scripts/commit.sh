@@ -126,13 +126,14 @@ nab_resolve_repo_path() {
     esac
 
     local -a stack=() parts=()
-    local segment net=0
+    local segment base joined
     # read -a splits on "/" without any glob expansion.
     IFS=/ read -r -a parts <<<"$prefix"
     for segment in ${parts[@]+"${parts[@]}"}; do
         [ -n "$segment" ] || continue
         stack[${#stack[@]}]=$segment
     done
+    base=${prefix%/}
     parts=()
     IFS=/ read -r -a parts <<<"$entry"
     for segment in ${parts[@]+"${parts[@]}"}; do
@@ -143,20 +144,22 @@ nab_resolve_repo_path() {
                     die "paths entry '$entry' resolves outside the repository."
                 fi
                 unset "stack[$((${#stack[@]} - 1))]"
-                net=$((net - 1))
                 ;;
             *)
                 stack[${#stack[@]}]=$segment
-                net=$((net + 1))
                 ;;
         esac
     done
 
-    if [ "$net" -eq 0 ]; then
-        die "paths entry '$entry' is the working directory itself. List the build folder, for example 'dist', not '.'."
-    fi
     if [ "${#stack[@]}" -eq 0 ]; then
         die "paths entry '$entry' is the repository root. List the build folder, for example 'dist'."
+    fi
+    joined=""
+    for segment in "${stack[@]}"; do
+        joined="${joined:+$joined/}$segment"
+    done
+    if [ "$joined" = "$base" ]; then
+        die "paths entry '$entry' is the working directory itself. List the build folder, for example 'dist', not '.'."
     fi
 
     NAB_REL_PATH=""
