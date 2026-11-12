@@ -209,8 +209,9 @@ jobs:
 ```
 
 - **`persist-credentials: false`.** Without it `actions/checkout` writes the token to
-  `.git/config`, where the install and build scripts can read it. The action prints a
-  warning when it finds such a header in the config.
+  `.git/config`, where the install and build scripts can read it. The action looks for
+  such a header before the install. Mode `commit` and mode `pr` fail, and mode `check`
+  and mode `build` print a warning.
 - **`permissions: contents: write`.** The default `GITHUB_TOKEN` of a read-only workflow
   cannot push.
 - **`concurrency`.** If two runs push to the same branch, the second push is rejected. The

@@ -84,7 +84,7 @@ In v2 the `node-version` input had no effect, the container always used its own 
 
 In v2 the token was in the same container as `npm ci` and your build. In v3 the validate, install and build steps never receive it. Only the Commit step (mode `commit`) and the Pull request step (mode `pr`) hold it, and they give it to `git` and `gh` for one command at a time.
 
-Two changes follow in your workflow. Set `persist-credentials: false` on `actions/checkout`, and do not pass a token to it. If the checkout keeps its credentials, the action prints a warning, and the push can fail with two Authorization headers. And `token` is no longer required, it defaults to `${{ github.token }}`. The job needs `permissions: contents: write`, and mode `pr` also needs `pull-requests: write`.
+Two changes follow in your workflow. Set `persist-credentials: false` on `actions/checkout`, and do not pass a token to it. If the checkout keeps its credentials, mode `commit` and mode `pr` fail before the install, and mode `check` and mode `build` print a warning. And `token` is no longer required, it defaults to `${{ github.token }}`. The job needs `permissions: contents: write`, and mode `pr` also needs `pull-requests: write`.
 
 ### No guessing of the build directory
 
