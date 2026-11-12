@@ -24,13 +24,14 @@ The threat model in [`docs/threat-model.md`](docs/threat-model.md) lists the ris
 
 - We acknowledge a report within 7 days.
 - Within 30 days we either publish a fix, or decide and tell you why the report is accepted or declined.
+- A Dependabot security update is merged within 7 days when its severity is high or critical, and within 30 days for the others, once the checks pass.
 
 ## Supported versions
 
 | Version | Status |
 |---|---|
 | v3, development on `main` | Supported. Not released yet, so there is no tag to use. |
-| v2 (`v2` tag and `v2.x.x`) | Security fixes only, until the sunset date. Sunset: TBD, set before the v3.0.0 release. |
+| v2 (`v2` tag and `v2.x.x`) | Supported until v3.0.0 is published. From that day v2 gets no patches, and the `v2` tag stays as it is. Use v3, see the [migration guide](docs/migration-v2-to-v3.md). |
 | v1 | Not supported. |
 
 ## Out of scope
