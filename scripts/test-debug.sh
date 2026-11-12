@@ -1,9 +1,12 @@
 #!/bin/bash
 
-# Script para probar el action localmente con debug
+# Run the action locally in Docker with the debug image
 echo "🧪 Testing npm-auto-build action locally (debug)..."
 
-# Configurar variables de entorno
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Set the inputs
 export INPUT_COMMAND="build"
 export INPUT_DIRECTORY="."
 export INPUT_BUILD_DIR="dist"
@@ -13,12 +16,12 @@ export INPUT_GIT_USER_NAME="Local Test User"
 export INPUT_GIT_USER_EMAIL="test@local.com"
 export INPUT_NODE_VERSION="18"
 
-# Directorio del proyecto de prueba
-TEST_PROJECT="/Users/miguel/Projects/npm-auto-build/test-project"
+# Test project directory, inside the repository
+TEST_PROJECT="$PROJECT_ROOT/test-project"
 
 echo "📁 Testing with project: $TEST_PROJECT"
 
-# Ejecutar el container Docker de debug
+# Run the Docker container with the debug image
 docker run --rm \
   -v "$TEST_PROJECT:/github/workspace" \
   -e INPUT_COMMAND \

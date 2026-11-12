@@ -8,9 +8,8 @@ set -e
 echo "🧪 Testing NPM Auto Build logic (build-only mode)..."
 
 # Create a temporary test directory
-TEST_DIR="/tmp/npm-auto-build-test-$$"
-mkdir -p "$TEST_DIR"
-cd "$TEST_DIR"
+TEST_DIR="$(mktemp -d)"
+cd "$TEST_DIR" || exit 1
 
 # Create a simple test project
 echo "📁 Creating test project..."
@@ -24,7 +23,7 @@ cat > package.json << EOF
 }
 EOF
 
-# Initialize git (required for our script)
+# Initialize git (required by the action)
 git init
 git config user.name "Test User"
 git config user.email "test@example.com"
@@ -42,7 +41,7 @@ echo "✅ Build completed successfully!"
 echo "📄 Built file content:"
 cat dist/main.js
 
-# Test our build-only logic
+# Test the build-only logic
 echo ""
 echo "🔍 Testing build-only mode logic..."
 
@@ -50,7 +49,7 @@ echo "🔍 Testing build-only mode logic..."
 export INPUT_BUILD_ONLY="true"
 export INPUT_BUILD_DIR="dist"
 
-# Test the build-only condition
+# Check the build-only condition
 if [ "$INPUT_BUILD_ONLY" = "true" ]; then
     echo "✅ Build completed successfully in build-only mode!"
     echo "✅ Build directory '$INPUT_BUILD_DIR' has been created but not committed."
@@ -59,8 +58,8 @@ else
     echo "❌ Build-only mode not detected"
 fi
 
-# Cleanup
-cd /
+# Clean up
+cd / || exit 1
 rm -rf "$TEST_DIR"
 
 echo ""

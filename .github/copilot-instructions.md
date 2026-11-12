@@ -67,9 +67,8 @@ if: github.event_name == 'push'          # Build+commit for main
 - Reference `actions/checkout@v5` for Node.js 24 compatibility
 
 **Marketplace Compliance:**
-- **CRITICAL: Never add `.github/workflows/` files** - GitHub Actions repositories "must not contain any workflow files" per [marketplace requirements](https://docs.github.com/en/actions/creating-actions/publishing-actions-in-github-marketplace#prerequisites)
-- Keep only `README.md` and `CHANGELOG.md` as documentation
-- All examples should use the action via marketplace reference, not local paths
+- The Marketplace requires a public repository, a single `action.yml` or `action.yaml` at the root and a unique `name` ([requirements](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/publish-in-github-marketplace)). Workflow files under `.github/workflows/` are allowed, and the repository has them for CI.
+- All examples should use the action via the marketplace reference, not local paths
 
 **Major Version Tag Management:**
 After each release, update the major version tag to point to the latest version:
