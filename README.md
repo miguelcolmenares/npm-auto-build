@@ -213,6 +213,7 @@ The action works with npm, pnpm, yarn classic and yarn berry. With `package-mana
 - [Migration guide from v2](docs/migration-v2-to-v3.md): renamed inputs, breaking changes, and how to stay on `@v2`.
 - [Examples](examples/README.md): complete workflow files.
 - [Testing guide](docs/testing.md): local checks, the bats tests, and what CI runs.
+- [Architecture](docs/architecture.md): the two trust zones and what each script may do.
 - [Threat model](docs/threat-model.md) and [security policy](SECURITY.md).
 - [Changelog](CHANGELOG.md).
 
