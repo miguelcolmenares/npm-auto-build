@@ -64,3 +64,14 @@ The boundary that matters is between the code that runs the project (install and
 | A directory is force-added after a guess | `entrypoint.sh:101-107`, `:173` | T8 | #2 (no guessing), #3 (`--force` only on configured paths) |
 | Parallel runs collide on push, and there is no retry | `entrypoint.sh:258` | T10 | #3 (rebase and retry) |
 | No lock file means `npm install` resolves new versions | `entrypoint.sh:81` | T2 | Not closed by #2 or #3. No issue requires a lock file yet. Open decision for the maintainer. |
+
+## Scorecard alerts that are accepted or open
+
+OpenSSF Scorecard runs on `main` and reports to the code scanning page. Dismissed on 2026-11-12, with the reason written on each alert:
+
+| Check | Why it is accepted |
+|---|---|
+| Code-Review | This repository has one maintainer, so nobody else can approve a pull request. The risk is a change that nobody else read. It is reduced by the required checks and the protection of `main` (no force push, linear history, and the tests described in `docs/architecture.md`). It would be closed by a second maintainer. |
+| Fuzzing | The action is shell scripts with no parser and no binary input, and Scorecard does not detect fuzzing for bash. The inputs are tested with hostile values (spaces, quotes, `$()`, a leading `-`, newlines and long strings) in `tests/validate-inputs.bats` and `tests/failure-paths.bats`. |
+
+CII-Best-Practices stays open. It is closed by registering the project at bestpractices.dev and answering its questionnaire.
