@@ -205,7 +205,7 @@ main() {
         return 0
     fi
 
-    cut -f2- "$entries" >"$outdir/files.txt"
+    cut -f2- "$entries" | LC_ALL=C sort >"$outdir/files.txt"
 
     # The patch: the real index is left alone. A scratch copy of it gets every file in
     # the paths added with --intent-to-add, so new and ignored files show in the patch.
