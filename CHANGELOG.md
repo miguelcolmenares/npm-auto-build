@@ -37,10 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/threat-model.md`: the assets, actors, trust boundaries and threats of the action, and the known v2 findings with the v3 fix for each.
 - `SECURITY.md`: how to report a vulnerability, which versions are supported, and the response times.
 
-### Fixed
-- **A failed direct push is reported once, with its real error.** The action ran `git push` a second time only to read the error text, so a retry that succeeded still ended with exit code 1. It now captures the output of the first push.
-- A stray character in the protected-branch hint no longer breaks the line.
-
 ### Changed
 - **A detached HEAD is an error in mode commit** (a tag push, or a `pull_request` event), with a message that names `mode: check`, a branch push and `mode: pr`. There is no more `HEAD` used as a branch name.
 - The self-test of the unavailable mode uses `mode: pr`, and a new CI job `self-test-commit` runs `mode: commit` against a local bare remote. `docs/testing.md` explains the workflow requirements: `persist-credentials: false`, `permissions: contents: write` and a `concurrency` group.
