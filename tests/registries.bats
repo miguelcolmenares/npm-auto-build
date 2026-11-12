@@ -138,8 +138,10 @@ export_github_tokens() {
         install_and_build
         # Every call was recorded, and the registry token is in each of them.
         grep -q '^NODE_AUTH_TOKEN=' "$STUB_ENV_LOG"
-        ! grep -Eq '^(GITHUB_TOKEN|GH_TOKEN|INPUT_TOKEN|INPUT_GITHUB_TOKEN|ACTIONS_RUNTIME_TOKEN|ACTIONS_ID_TOKEN_REQUEST_TOKEN)=' "$STUB_ENV_LOG"
-        ! grep -q "$FAKE_TOKEN" "$STUB_ENV_LOG"
+        run grep -Eq '^(GITHUB_TOKEN|GH_TOKEN|INPUT_TOKEN|INPUT_GITHUB_TOKEN|ACTIONS_RUNTIME_TOKEN|ACTIONS_ID_TOKEN_REQUEST_TOKEN)=' "$STUB_ENV_LOG"
+        [ "$status" -eq 1 ]
+        run grep -q "$FAKE_TOKEN" "$STUB_ENV_LOG"
+        [ "$status" -eq 1 ]
     done
 }
 
@@ -153,7 +155,8 @@ export_github_tokens() {
     [ "$status" -eq 0 ]
     grep -q '^\[corepack enable\]$' "$STUB_ENV_LOG"
     grep -q '^\[pnpm --version\]$' "$STUB_ENV_LOG"
-    ! grep -q "$FAKE_TOKEN" "$STUB_ENV_LOG"
+    run grep -q "$FAKE_TOKEN" "$STUB_ENV_LOG"
+    [ "$status" -eq 1 ]
 }
 
 @test "with NODE_AUTH_TOKEN equal to the GitHub token, only NODE_AUTH_TOKEN carries it" {
@@ -168,7 +171,8 @@ export_github_tokens() {
     env_of "npm ci" | grep -qx "NODE_AUTH_TOKEN=$FAKE_TOKEN"
     env_of "npm run build" | grep -qx "NODE_AUTH_TOKEN=$FAKE_TOKEN"
     [ "$(grep -c "$FAKE_TOKEN" "$STUB_ENV_LOG")" -eq "$(grep -c '^NODE_AUTH_TOKEN=' "$STUB_ENV_LOG")" ]
-    ! grep -Eq '^(GITHUB_TOKEN|GH_TOKEN|INPUT_TOKEN|INPUT_GITHUB_TOKEN|ACTIONS_RUNTIME_TOKEN|ACTIONS_ID_TOKEN_REQUEST_TOKEN)=' "$STUB_ENV_LOG"
+    run grep -Eq '^(GITHUB_TOKEN|GH_TOKEN|INPUT_TOKEN|INPUT_GITHUB_TOKEN|ACTIONS_RUNTIME_TOKEN|ACTIONS_ID_TOKEN_REQUEST_TOKEN)=' "$STUB_ENV_LOG"
+    [ "$status" -eq 1 ]
 }
 
 @test "the scripts print no token, also when NODE_AUTH_TOKEN is set" {
@@ -178,12 +182,13 @@ export_github_tokens() {
     stub_on_path npm
     validate_and_load
     run_script install.sh
-    [[ "$output" != *"$FAKE_TOKEN"* ]]
-    [[ "$output" != *"$REGISTRY_TOKEN"* ]]
+    [[ "$output" != *"$FAKE_TOKEN"* ]] || false
+    [[ "$output" != *"$REGISTRY_TOKEN"* ]] || false
     run_script build.sh
-    [[ "$output" != *"$FAKE_TOKEN"* ]]
-    [[ "$output" != *"$REGISTRY_TOKEN"* ]]
-    ! grep -q "$REGISTRY_TOKEN" "$GITHUB_ENV" "$GITHUB_OUTPUT"
+    [[ "$output" != *"$FAKE_TOKEN"* ]] || false
+    [[ "$output" != *"$REGISTRY_TOKEN"* ]] || false
+    run grep -q "$REGISTRY_TOKEN" "$GITHUB_ENV" "$GITHUB_OUTPUT"
+    [ "$status" -eq 1 ]
 }
 
 # ---- no credential is written to a file -----------------------------------------------------
@@ -202,7 +207,8 @@ export_github_tokens() {
     [ ! -e "$WORKSPACE/.yarnrc" ]
     [ ! -e "$WORKSPACE/.yarnrc.yml" ]
     [ -z "$(find "$HOME" -type f)" ]
-    ! grep -rq "$REGISTRY_TOKEN" "$WORKSPACE" "$HOME" "$GITHUB_ENV" "$GITHUB_OUTPUT"
+    run grep -rq "$REGISTRY_TOKEN" "$WORKSPACE" "$HOME" "$GITHUB_ENV" "$GITHUB_OUTPUT"
+    [ "$status" -eq 1 ]
 }
 
 @test "no script redirects output into an .npmrc, .yarnrc or an auth token setting" {
@@ -245,7 +251,7 @@ export_github_tokens() {
     export INPUT_REGISTRY_URL=ftp://registry.example.test/
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"must start with http:// or https://"* ]]
+    [[ "$output" == *"must start with http:// or https://"* ]] || false
     export INPUT_REGISTRY_URL='registry.example.test'
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
@@ -255,8 +261,8 @@ export_github_tokens() {
     export INPUT_REGISTRY_URL="https://user:${REGISTRY_TOKEN}@registry.example.test/"
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"must not contain credentials"* ]]
-    [[ "$output" != *"$REGISTRY_TOKEN"* ]]
+    [[ "$output" == *"must not contain credentials"* ]] || false
+    [[ "$output" != *"$REGISTRY_TOKEN"* ]] || false
 }
 
 @test "registry-url and scope must be a single line, and scope must look like a scope" {
@@ -325,7 +331,8 @@ run_real() {
     [ "$status" -eq 0 ]
     [ -f node_modules/@nab-test/private-pkg/index.js ]
     grep -q ' authorized$' "$REQUEST_LOG"
-    ! grep -q ' denied$' "$REQUEST_LOG"
+    run grep -q ' denied$' "$REQUEST_LOG"
+    [ "$status" -eq 1 ]
     run_real build.sh
     [ "$status" -eq 0 ]
     [ "$(cat dist/out.txt)" = "private package installed" ]

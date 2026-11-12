@@ -37,7 +37,7 @@ setup() {
     stub_as_shim pnpm
     run_install
     [ "$status" -eq 0 ]
-    [[ "$(calls)" == *"pnpm install --frozen-lockfile" ]]
+    [[ "$(calls)" == *"pnpm install --frozen-lockfile" ]] || false
 }
 
 @test "packageManager wins over a lockfile" {
@@ -67,8 +67,8 @@ setup() {
     stub_on_path npm
     run_install
     [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::"*"'bun' is not supported"* ]]
-    [[ "$output" == *"npm, pnpm and yarn"* ]]
+    [[ "$output" == *"::error::"*"'bun' is not supported"* ]] || false
+    [[ "$output" == *"npm, pnpm and yarn"* ]] || false
     [ -z "$(calls)" ]
 }
 
@@ -77,7 +77,7 @@ setup() {
     stub_on_path npm
     run_install
     [ "$status" -eq 1 ]
-    [[ "$output" == *"'deno' is not supported"* ]]
+    [[ "$output" == *"'deno' is not supported"* ]] || false
 }
 
 @test "a packageManager that is not a string fails with a clear message" {
@@ -85,7 +85,7 @@ setup() {
     stub_on_path npm
     run_install
     [ "$status" -eq 1 ]
-    [[ "$output" == *"packageManager is not a string"* ]]
+    [[ "$output" == *"packageManager is not a string"* ]] || false
 }
 
 # ---- detection by the lockfile ---------------------------------------------------------
@@ -136,14 +136,14 @@ setup() {
     run_install
     [ "$status" -eq 0 ]
     [ "$(calls)" = "npm install" ]
-    [[ "$output" == *"::warning::No package-lock.json found"* ]]
+    [[ "$output" == *"::warning::No package-lock.json found"* ]] || false
 }
 
 @test "a lockfile does not produce the missing lockfile warning" {
     touch package-lock.json
     stub_on_path npm
     run_install
-    [[ "$output" != *"::warning::"* ]]
+    [[ "$output" != *"::warning::"* ]] || false
 }
 
 @test "two lockfiles fail and name both" {
@@ -151,9 +151,9 @@ setup() {
     stub_on_path npm yarn
     run_install
     [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::"*"yarn.lock, package-lock.json"* ]]
-    [[ "$output" == *"packageManager"* ]]
-    [[ "$output" == *"package-manager input"* ]]
+    [[ "$output" == *"::error::"*"yarn.lock, package-lock.json"* ]] || false
+    [[ "$output" == *"packageManager"* ]] || false
+    [[ "$output" == *"package-manager input"* ]] || false
     [ -z "$(calls)" ]
 }
 
@@ -162,7 +162,7 @@ setup() {
     stub_on_path npm yarn pnpm
     run_install
     [ "$status" -eq 1 ]
-    [[ "$output" == *"pnpm-lock.yaml, yarn.lock, package-lock.json"* ]]
+    [[ "$output" == *"pnpm-lock.yaml, yarn.lock, package-lock.json"* ]] || false
 }
 
 @test "a bun lockfile alone fails, a bun lockfile next to another one does not" {
@@ -170,7 +170,7 @@ setup() {
     stub_on_path npm
     run_install
     [ "$status" -eq 1 ]
-    [[ "$output" == *"bun is not supported"* ]]
+    [[ "$output" == *"bun is not supported"* ]] || false
     touch package-lock.json
     run_script install.sh
     [ "$status" -eq 0 ]
@@ -182,7 +182,7 @@ setup() {
     stub_on_path npm pnpm
     run_build
     [ "$status" -eq 1 ]
-    [[ "$output" == *"pnpm-lock.yaml, package-lock.json"* ]]
+    [[ "$output" == *"pnpm-lock.yaml, package-lock.json"* ]] || false
 }
 
 # ---- explicit input -------------------------------------------------------------------
@@ -196,7 +196,7 @@ setup() {
     [ "$status" -eq 0 ]
     [ "$(calls)" = "npm install" ]
     # The field names another manager, so the action says that the input won.
-    [[ "$output" == *"::warning::The package-manager input is 'npm'"* ]]
+    [[ "$output" == *"::warning::The package-manager input is 'npm'"* ]] || false
 }
 
 @test "an explicit package-manager skips the two lockfile error" {
@@ -214,7 +214,7 @@ setup() {
     # corepack enable runs but provides nothing.
     run_install
     [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::pnpm was not found on PATH"* ]]
+    [[ "$output" == *"::error::pnpm was not found on PATH"* ]] || false
 }
 
 @test "an explicit package-manager still checks the tool: --version fails" {
@@ -223,7 +223,7 @@ setup() {
     stub_on_path npm
     run_install
     [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::'npm --version' failed"* ]]
+    [[ "$output" == *"::error::'npm --version' failed"* ]] || false
     [ -z "$(calls)" ]
 }
 
@@ -253,7 +253,7 @@ setup() {
     run_install
     [ "$status" -eq 1 ]
     [ ! -e custom.txt ]
-    [[ "$output" == *"yarn.lock, package-lock.json"* ]]
+    [[ "$output" == *"yarn.lock, package-lock.json"* ]] || false
 }
 
 # ---- yarn classic and berry -----------------------------------------------------------
@@ -333,7 +333,7 @@ setup() {
     run_install
     [ "$status" -eq 0 ]
     [ "$(calls)" = "yarn install" ]
-    [[ "$output" == *"::warning::No yarn.lock found"* ]]
+    [[ "$output" == *"::warning::No yarn.lock found"* ]] || false
     : >"$STUB_LOG"
     touch .yarnrc.yml
     run_script install.sh
@@ -377,7 +377,8 @@ setup() {
     [ "$(calls)" = "yarn install --immutable" ]
     env_of "yarn install --immutable" | grep -qx 'YARN_ENABLE_SCRIPTS=false'
     # The version check ran before, with the environment of the job.
-    ! env_of "yarn --version" | grep -q 'YARN_ENABLE_SCRIPTS'
+    run env_of "yarn --version"
+    [[ "$output" != *"YARN_ENABLE_SCRIPTS"* ]] || false
 }
 
 @test "ignore-scripts off: yarn berry does not get YARN_ENABLE_SCRIPTS" {
@@ -385,7 +386,8 @@ setup() {
     stub_on_path yarn
     run_install
     [ "$status" -eq 0 ]
-    ! env_of "yarn install --immutable" | grep -q 'YARN_ENABLE_SCRIPTS'
+    run env_of "yarn install --immutable"
+    [[ "$output" != *"YARN_ENABLE_SCRIPTS"* ]] || false
 }
 
 @test "ignore-scripts: the berry variable is set for the berry install even when the job sets another value" {
@@ -418,7 +420,8 @@ setup() {
     touch package-lock.json
     run_script install.sh
     [ "$status" -eq 0 ]
-    ! grep -q '^corepack' "$STUB_LOG"
+    run grep -q '^corepack' "$STUB_LOG"
+    [ "$status" -eq 1 ]
 }
 
 @test "corepack enable is called when the field names pnpm or yarn, even if the binary exists" {
@@ -437,17 +440,17 @@ setup() {
     run_install
     [ "$status" -eq 0 ]
     [ "$(grep -c '^corepack enable$' "$STUB_LOG")" -eq 1 ]
-    [[ "$output" == *"Enabling corepack: pnpm is not installed"* ]]
-    [[ "$output" == *"Using pnpm 9.15.0"* ]]
+    [[ "$output" == *"Enabling corepack: pnpm is not installed"* ]] || false
+    [[ "$output" == *"Using pnpm 9.15.0"* ]] || false
 }
 
 @test "without corepack a missing pnpm fails and says how to install it" {
     touch pnpm-lock.yaml
     run_install
     [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::Corepack is not available"* ]]
-    [[ "$output" == *"Install pnpm in a step before this action"* ]]
-    [[ "$output" == *"install-command"* ]]
+    [[ "$output" == *"::error::Corepack is not available"* ]] || false
+    [[ "$output" == *"Install pnpm in a step before this action"* ]] || false
+    [[ "$output" == *"install-command"* ]] || false
 }
 
 @test "without corepack a packageManager field of yarn fails the same way" {
@@ -456,8 +459,8 @@ setup() {
     stub_on_path yarn
     run_install
     [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::Corepack is not available"* ]]
-    [[ "$output" == *"packageManager field"* ]]
+    [[ "$output" == *"::error::Corepack is not available"* ]] || false
+    [[ "$output" == *"packageManager field"* ]] || false
 }
 
 @test "a failing corepack enable is a clear error" {
@@ -467,7 +470,7 @@ setup() {
     stub_as_shim yarn
     run_install
     [ "$status" -eq 1 ]
-    [[ "$output" == *"'corepack enable' failed"* ]]
+    [[ "$output" == *"'corepack enable' failed"* ]] || false
     [ "$(calls)" = "corepack enable" ]
 }
 
