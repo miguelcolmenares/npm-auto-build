@@ -1,5 +1,5 @@
 name: "NPM Auto Build"
-description: "Builds your npm project and commits the build output to your repository, so nobody commits dist/ by hand. The modes commit (default), check, pr and build are available in v3."
+description: "Build your project and commit the output, so you do not commit dist/ by hand. Can also check it is current, or open a PR."
 
 author: "Miguel Colmenares <me@miguelcolmenares.com>"
 
