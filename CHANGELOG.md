@@ -32,11 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Dockerfile` and `entrypoint.sh`, and the Docker only scripts `test.sh`, `test-build-only.sh`, `scripts/test-local.sh`, `scripts/test-debug.sh` and `scripts/Dockerfile.debug`. They stay available through the `v2` tag.
 - **The guessing of the build directory** (`dist`, `build`, `lib`, `public`, `out`, `.next`).
 
-### Fixed
+### Made before the rewrite (Docker action, never released)
+These changes were made to the Docker action before it was replaced, and they are in no release. The two fixes and the `node-version` warning lived in `entrypoint.sh`, which is removed, so they are not part of v3.
+
+**Fixed**
 - **A failed direct push is reported once, with its real error.** The action ran `git push` a second time only to read the error text, so a retry that succeeded still ended with exit code 1. It now captures the output of the first push.
 - A stray character in the protected-branch hint no longer breaks the line.
 
-### Changed
+**Changed**
 - The action prints a warning when the `node-version` input asks for a different Node.js major than the one in the Docker image. The input has no effect in this action, and a real one comes with v3.
 - The repository has CI now: shellcheck on every shell script, a check that the workflow files parse, CodeQL, and Dependabot with auto-merge for minor and patch updates. `docker-compose.yml` is removed and the local test scripts no longer use a hard-coded path. None of this changes how the action runs.
 
