@@ -1,0 +1,28 @@
+# The smallest workflow: mode commit, the default.
+#
+# On every push to main it installs Node.js 24, installs the dependencies, runs the
+# `build` script of package.json and commits the changed `dist` folder to main.
+# When the build output did not change, it makes no commit.
+#
+# Copy the file to .github/workflows/ and change nothing else to start.
+name: Build
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write # the push of the build commit
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false # the build cannot read a token from .git/config
+      - uses: miguelcolmenares/npm-auto-build@v3
