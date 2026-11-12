@@ -31,7 +31,7 @@ bats tests/              # the bats tests alone (brew install bats-core)
 - `command` → `INPUT_COMMAND`
 - `working-directory` → `INPUT_WORKING_DIRECTORY`
 
-**Version Strategy:** Uses major version tags (`@v1`) that auto-update to latest `v1.x.x` releases.
+**Version Strategy:** Uses major version tags (`@v2`) that auto-update to the latest `v2.x.x` release. v3 gets its own tag when it is released.
 
 ## Project-Specific Conventions
 
@@ -63,7 +63,7 @@ if: github.event_name == 'push'          # Build+commit for main
 - Never read or print the token in `install.sh` or `build.sh`
 
 **When updating examples:**
-- Use `@v1` tag references (not specific versions like `@v1.1.0`)
+- Use `@v2` tag references (not specific versions like `@v2.1.2`)
 - Include both build-only and build+commit scenarios
 - Reference `actions/checkout@v5` for Node.js 24 compatibility
 

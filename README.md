@@ -511,17 +511,9 @@ permissions:
 ### No Changes to Commit
 This is normal if your build output hasn't changed. The action will exit successfully without making a commit.
 
-## � Testing Locally
+## 🧪 Testing Locally
 
-You can test this action locally using Docker:
-
-```bash
-# Quick test with defaults
-./test.sh
-
-# Test with custom parameters
-./test.sh "build:prod" "build" "./my-project"
-```
+Run `npm test` for shellcheck and the bats tests. The Docker scripts (`test.sh` and the others) belong to v2 and live in the `v2` tag.
 
 For more testing options, see [docs/testing.md](docs/testing.md).
 

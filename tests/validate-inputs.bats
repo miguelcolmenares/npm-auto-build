@@ -240,7 +240,7 @@ setup() {
     export INPUT_NODE_VERSION_FILE=".nvmrc"
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 0 ]
-    [ "$(output_value node-version)" = "" ]
+    grep -q "^node-version=$" "$GITHUB_OUTPUT"
 }
 
 @test "node-version-file must stay inside the workspace" {
@@ -252,7 +252,7 @@ setup() {
 
 @test "node-version accepts the usual specs and rejects shell characters" {
     local ok
-    for ok in 24 22.x v20.11.1 lts/* '>=20' '^22.1'; do
+    for ok in 24 22.x v20.11.1 'lts/*' '>=20' '^22.1'; do
         export INPUT_NODE_VERSION="$ok"
         run bash "$SCRIPTS/validate-inputs.sh"
         [ "$status" -eq 0 ] || {

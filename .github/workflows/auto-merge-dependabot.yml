@@ -5,7 +5,6 @@ name: Auto-merge Dependabot PRs
 # `pull_request`; the job-level `permissions:` block elevates the GITHUB_TOKEN
 # for Dependabot's own PRs. Major updates are left for manual review, matching
 # the grouping in .github/dependabot.yml, which groups only minor and patch updates.
-# Docker image updates are never auto-merged, because no check here builds the image.
 #
 # Release-age cooldown (supply-chain guard): a freshly-published version is the
 # window in which a compromised or broken release is most likely still live.

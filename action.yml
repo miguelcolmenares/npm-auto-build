@@ -39,7 +39,7 @@ inputs:
     required: false
     default: "dist"
   token:
-    description: "GitHub token. Only the commit step reads it, install and build never see it."
+    description: "GitHub token (modes commit and pr, not read in build mode). Only the commit step reads it, install and build never see it."
     required: false
     default: ${{ github.token }}
   commit-message:
@@ -47,11 +47,11 @@ inputs:
     required: false
     default: "chore: update build output [skip ci]"
   git-user-name:
-    description: "Git user name for commits."
+    description: "Git user name for commits (modes commit and pr)."
     required: false
     default: "github-actions[bot]"
   git-user-email:
-    description: "Git user email for commits."
+    description: "Git user email for commits (modes commit and pr)."
     required: false
     default: "github-actions[bot]@users.noreply.github.com"
   branch:
@@ -79,9 +79,10 @@ inputs:
     required: false
     default: "true"
 
-  # v2 names, accepted for a short time. Each one is mapped to its v3 input with a warning.
+  # v2 names, accepted for a short time, each with a warning that names the new input. The
+  # value of github-token is NOT read yet, the commit step of issue #3 decides what to do with it.
   github-token:
-    description: "Deprecated, use token. Accepted as an alias."
+    description: "Deprecated, use token. Accepted so a v2 workflow does not fail, but only a warning is printed and the value is not read yet."
     required: false
     default: ""
   directory:

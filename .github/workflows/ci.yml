@@ -80,7 +80,9 @@ jobs:
           package-manager-cache: false
 
       - name: Install bats
-        run: sudo apt-get install -y bats
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats
 
       - name: Show versions
         run: |

@@ -18,7 +18,8 @@ ACTION="$BATS_TEST_DIRNAME/../action.yml"
 }
 
 @test "no run line interpolates an expression" {
-    ! grep -E '^\s+run:.*\$\{\{' "$ACTION"
+    run grep -E '^\s+run:.*\$\{\{' "$ACTION"
+    [ "$status" -eq 1 ]
 }
 
 @test "the token is only read by the default of its input and the alias flag" {
