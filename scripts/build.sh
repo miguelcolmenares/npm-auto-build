@@ -46,13 +46,12 @@ main() {
     local entry missing=""
     while IFS= read -r entry; do
         if [ ! -e "$entry" ]; then
-            missing="${missing}  ${entry}"$'\n'
+            missing="${missing:+$missing, }'$entry'"
         fi
     done <<<"$paths"
 
     if [ -n "$missing" ]; then
-        printf '[INFO] Paths missing after the build (relative to working-directory):\n%s' "$missing"
-        die "The build finished but these paths do not exist: ${missing//$'\n'/ }. Fix 'paths' or the build script."
+        die "The build finished but these paths do not exist (relative to working-directory '${NAB_WORKDIR:-.}'): $missing. Fix 'paths' or the build script."
     fi
 
     log_info "Build finished, every path exists:"

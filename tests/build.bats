@@ -35,12 +35,10 @@ setup() {
     validate_and_load
     run bash "$SCRIPTS/build.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::The build finished but these paths do not exist:"* ]]
-    [[ "$output" == *"build"* ]]
-    [[ "$output" == *"lib/types"* ]]
+    [[ "$output" == *"::error::The build finished but these paths do not exist"* ]]
+    [[ "$output" == *"'build', 'lib/types'. Fix 'paths'"* ]]
     # dist exists, so it must not be listed as missing.
-    [[ "$output" != *"do not exist: dist"* ]]
-    [[ "$output" != *"  dist  "* ]]
+    [[ "$output" != *"'dist'"* ]]
 }
 
 @test "there is no directory guessing: a build in another directory does not count" {
@@ -50,7 +48,7 @@ setup() {
     run bash "$SCRIPTS/build.sh"
     [ "$status" -eq 1 ]
     [ -d build ]
-    [[ "$output" == *"these paths do not exist: "*"dist"* ]]
+    [[ "$output" == *"do not exist"*"'dist'"* ]]
 }
 
 @test "an unknown script lists the scripts that exist" {
