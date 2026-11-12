@@ -259,3 +259,27 @@ check_security() {
     [ -f "$ROOT/docs/audits/2026-11-12.md" ]
     grep -q '| T12 |' "$ROOT/docs/threat-model.md"
 }
+
+# A page of docs/ that is in no group breaks the site build ("<name> is in no group of Docs").
+# That was found in CI when docs/releasing.md arrived. Every page must be in a group or excluded.
+@test "every page of docs/ is in a group of the site or excluded from it" {
+    run python3 - "$REPO_ROOT" <<'PY'
+import json, os, sys
+root = sys.argv[1]
+cfg = json.load(open(os.path.join(root, "site", "sitekit.config.json")))
+text = json.dumps(cfg["docs"]["groups"]) if "docs" in cfg and "groups" in cfg["docs"] else json.dumps(cfg)
+excluded = {os.path.basename(p)[:-3] for p in cfg["anonymize"]["excludePaths"] if p.startswith("docs/")}
+missing = []
+for name in sorted(os.listdir(os.path.join(root, "docs"))):
+    if not name.endswith(".md"):
+        continue
+    slug = name[:-3]
+    if slug in excluded or f'"{slug}"' in text:
+        continue
+    missing.append(slug)
+if missing:
+    print("in no group and not excluded: " + ", ".join(missing))
+    sys.exit(1)
+PY
+    [ "$status" -eq 0 ]
+}

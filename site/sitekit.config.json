@@ -137,7 +137,8 @@
   },
   "anonymize": {
     "excludePaths": [
-      "docs/README.md"
+      "docs/README.md",
+      "docs/releasing.md"
     ],
     "replace": {},
     "denyPatterns": [],
