@@ -101,6 +101,8 @@ main() {
     local package_manager=${INPUT_PACKAGE_MANAGER:-auto}
     local node_version=${INPUT_NODE_VERSION:-24}
     local node_version_file=${INPUT_NODE_VERSION_FILE:-}
+    local registry_url=${INPUT_REGISTRY_URL:-}
+    local scope=${INPUT_SCOPE:-}
     local paths=${INPUT_PATHS-dist}
     local ignore_scripts=${INPUT_IGNORE_SCRIPTS:-false}
     local upload_diff=${INPUT_UPLOAD_DIFF:-true}
@@ -174,6 +176,42 @@ main() {
     check_single_line package-manager "$package_manager"
     check_single_line node-version "$node_version"
     check_single_line node-version-file "$node_version_file"
+    check_single_line registry-url "$registry_url"
+    check_single_line scope "$scope"
+
+    # registry-url and scope go to actions/setup-node, which writes them to an .npmrc.
+    # Neither is a secret, so a URL with credentials in it is refused. The messages never
+    # repeat the value, it could be the credential.
+    if [ -n "$registry_url" ]; then
+        case "$registry_url" in
+            http://* | https://*) ;;
+            *) die "registry-url must start with http:// or https://." ;;
+        esac
+        # The part before the first "/" is the host. A "@" there means user:password@host.
+        local rest=${registry_url#*://}
+        case "${rest%%/*}" in
+            *@*) die "registry-url must not contain credentials. Set NODE_AUTH_TOKEN in the env: of the job and let the .npmrc read it." ;;
+        esac
+        # A query or a fragment is where a token goes, and a registry URL needs neither.
+        case "$registry_url" in
+            *\?* | *\#*) die "registry-url must not contain a query (?) or a fragment (#). Set NODE_AUTH_TOKEN in the env: of the job and let the .npmrc read it." ;;
+        esac
+        local lower_url
+        lower_url=$(nab_lower "$registry_url")
+        if [[ $lower_url =~ (_auth|token|password|apikey)[a-z0-9_-]*= ]]; then
+            die "registry-url must not contain a credential setting such as _authToken, token, password or apikey. Set NODE_AUTH_TOKEN in the env: of the job and let the .npmrc read it."
+        fi
+        if [[ $registry_url == http://* ]]; then
+            local host=${rest%%/*}
+            host=$(nab_lower "${host%%:*}")
+            if [ "$host" != "localhost" ] && [ "$host" != "127.0.0.1" ]; then
+                log_warn "registry-url uses http://, so NODE_AUTH_TOKEN travels in clear text. Use https:// unless the registry is on this machine."
+            fi
+        fi
+    fi
+    if [ -n "$scope" ] && ! [[ $scope =~ ^@?[a-z0-9][a-z0-9._~-]*$ ]]; then
+        die "scope '$scope' is not a valid npm scope, for example @my-org."
+    fi
 
     [ -n "$workdir" ] || workdir=.
     check_relative_path working-directory "$workdir"

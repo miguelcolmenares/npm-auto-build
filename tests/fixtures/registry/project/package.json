@@ -1,0 +1,11 @@
+{
+  "name": "npm-auto-build-fixture-registry",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@nab-test/private-pkg": "1.0.0"
+  },
+  "scripts": {
+    "build": "node -e \"require('node:fs').mkdirSync('dist', {recursive: true}); require('node:fs').writeFileSync('dist/out.txt', require('@nab-test/private-pkg') + '\\n')\""
+  }
+}

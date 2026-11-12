@@ -1,0 +1,6 @@
+{
+  "name": "@nab-test/private-pkg",
+  "version": "1.0.0",
+  "description": "Package that only the test registry serves, and only with a token.",
+  "main": "index.js"
+}

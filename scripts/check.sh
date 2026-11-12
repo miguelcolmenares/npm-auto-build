@@ -118,8 +118,11 @@ main() {
     root_physical=$(cd -P -- "$root" && pwd -P) || die "Could not enter the repository root."
 
     # The package manager only names the fix command, resolve it from the working directory.
-    nab_resolve_package_manager
-    local pm=$NAB_RESOLVED_PM
+    # The detection stops with an error on an unreadable package.json or two lockfiles. That
+    # must not stop the check, so it runs in a subshell and the message falls back to npm.
+    local pm
+    pm=$( (nab_resolve_package_manager >/dev/null 2>&1 && printf '%s' "$NAB_RESOLVED_PM") ) || pm=npm
+    [ -n "$pm" ] || pm=npm
 
     # Resolve every path against the repository root, and refuse one that leaves it.
     local specs=() entry

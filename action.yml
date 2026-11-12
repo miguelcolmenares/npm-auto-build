@@ -22,11 +22,11 @@ inputs:
     required: false
     default: "build"
   install-command:
-    description: "Command that installs the dependencies. Empty means detect it from the lockfile."
+    description: "Command that installs the dependencies. Empty means the action picks the command for the package manager. When set, it replaces detection of the install command and ignore-scripts has no effect, the build still uses the detected package-manager."
     required: false
     default: ""
   package-manager:
-    description: "Package manager: auto, npm, yarn or pnpm. Auto detects it from the lockfile."
+    description: "Package manager: auto, npm, yarn or pnpm. Auto reads the packageManager field of package.json, then the lockfile (two lockfiles of different managers is an error, bun is not supported). An explicit value wins over both."
     required: false
     default: "auto"
   node-version:
@@ -35,6 +35,14 @@ inputs:
     default: "24"
   node-version-file:
     description: "File with the Node.js version, for example .nvmrc or package.json. Relative to the workspace. When set, it wins over node-version."
+    required: false
+    default: ""
+  registry-url:
+    description: "Registry URL for actions/setup-node, for example https://npm.pkg.github.com. setup-node then writes an .npmrc that reads NODE_AUTH_TOKEN, set it in the env: of the job. Not a secret, so no credential in the URL."
+    required: false
+    default: ""
+  scope:
+    description: "Scope for the registry-url, for example @my-org. Only used together with registry-url."
     required: false
     default: ""
   paths:
@@ -74,7 +82,7 @@ inputs:
     required: false
     default: "false"
   ignore-scripts:
-    description: "Install dependencies with --ignore-scripts, so no lifecycle script runs."
+    description: "Install dependencies without running lifecycle scripts: --ignore-scripts for npm, pnpm and yarn classic, YARN_ENABLE_SCRIPTS=false for yarn berry. No effect when install-command is set."
     required: false
     default: "false"
   upload-diff:
@@ -146,6 +154,8 @@ runs:
         INPUT_PACKAGE_MANAGER: ${{ inputs.package-manager }}
         INPUT_NODE_VERSION: ${{ inputs.node-version }}
         INPUT_NODE_VERSION_FILE: ${{ inputs.node-version-file }}
+        INPUT_REGISTRY_URL: ${{ inputs.registry-url }}
+        INPUT_SCOPE: ${{ inputs.scope }}
         INPUT_PATHS: ${{ inputs.paths }}
         INPUT_COMMIT_MESSAGE: ${{ inputs.commit-message }}
         INPUT_GIT_USER_NAME: ${{ inputs.git-user-name }}
@@ -169,6 +179,10 @@ runs:
       with:
         node-version: ${{ steps.validate.outputs.node-version }}
         node-version-file: ${{ inputs.node-version-file }}
+        # Both are empty by default. With a registry-url, setup-node writes an .npmrc with a
+        # ${NODE_AUTH_TOKEN} placeholder, never a token. The value comes from the job env:.
+        registry-url: ${{ inputs.registry-url }}
+        scope: ${{ inputs.scope }}
         # Caching stays off, it keeps the action simple.
         package-manager-cache: false
 

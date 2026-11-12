@@ -88,9 +88,11 @@ For repositories with branch protection rules, use the pull request approach:
 
 ### Supported Package Managers
 
-- **npm**: Uses `npm ci` for faster installs with lockfile
-- **yarn**: Automatically detected via `yarn.lock`
-- **pnpm**: Future support planned
+- **Detection** (`package-manager: auto`): the `packageManager` field of `package.json`, then the lockfile, then npm without a lockfile. Two lockfiles of different managers is an error. An explicit `package-manager` input wins.
+- **npm**: `npm ci` with a lockfile, `npm install` without one
+- **pnpm**: `pnpm install --frozen-lockfile`, set up with corepack when it is not installed
+- **yarn**: classic `yarn install --frozen-lockfile`, berry `yarn install --immutable`
+- **bun** is not supported. See [Testing](testing.md#package-managers-and-private-registries) for the details.
 
 ### Build Directory Detection
 

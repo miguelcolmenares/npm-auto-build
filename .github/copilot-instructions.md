@@ -41,7 +41,7 @@ bats tests/              # the bats tests alone (brew install bats-core)
 
 **Paths:** `paths` is a newline list, relative to `working-directory`. Entries that are empty, start with `-`, contain `..` or are absolute are rejected.
 
-**Package Manager Detection:** `package-lock.json` runs `npm ci`, `yarn.lock` runs `yarn install --frozen-lockfile`, `pnpm-lock.yaml` runs `pnpm install --frozen-lockfile`, otherwise `npm install`. Issue #6 extends this.
+**Package Manager Detection:** with `package-manager: auto`, the `packageManager` field of `package.json` comes first, then the lockfile (`pnpm-lock.yaml`, `yarn.lock`, `package-lock.json` or `npm-shrinkwrap.json`), then npm without a lockfile. Two lockfiles of different managers and no field is an error, and bun is not supported. Commands: `npm ci`, `pnpm install --frozen-lockfile`, yarn classic `--frozen-lockfile`, yarn berry `--immutable` (the lockfile-less forms are `npm install`, `pnpm install --no-frozen-lockfile`, `yarn install`, `yarn install --no-immutable`). `corepack enable` sets up pnpm and yarn, never `npm install -g`. An explicit `package-manager` input wins, and `install-command` replaces the install command.
 
 ## Integration Patterns
 

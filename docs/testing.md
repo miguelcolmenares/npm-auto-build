@@ -27,6 +27,8 @@ On Ubuntu: `sudo apt-get install -y shellcheck bats`. The tests need Node.js and
 | `tests/aliases.bats` | The v2 inputs (`build-only`, `create-pr`, `directory`, `build-dir`, `github-token`) and their warnings |
 | `tests/install.bats` | Install command per lockfile, with fake package managers on `PATH` |
 | `tests/build.bats` | The real build of the fixture, a missing path, no directory guessing, scripts that do not exist |
+| `tests/package-managers.bats` | Detection by the `packageManager` field and by each lockfile, two lockfiles, bun, yarn classic and berry, an explicit input, `install-command`, `ignore-scripts` for each manager, corepack, and the build command. The managers are fake binaries |
+| `tests/registries.bats` | The private registry contract (see below), the `registry-url` and `scope` inputs, and a real `npm install` against a local registry that needs a token |
 | `tests/token.bats` | The token is not in the environment of install and build scripts |
 | `tests/check.bats` | Mode check in a throwaway git repository: fresh, modified, new, deleted and ignored files, line endings, the cap of 50 files, paths outside the repository, no token, the diff files, standalone use |
 | `tests/commit.bats` | Mode commit against a local bare repository used as `origin`: commit and push, no second commit, detached HEAD, refused paths, rebase and retry, protected branch, author and message, and every place the token must not be |
@@ -42,6 +44,81 @@ is passed (`nab_git_remote`) separately.
 
 `tests/fixture/` is a tiny project without dependencies. Its `build` script writes
 `dist/out.txt`. `tests/helpers.bash` holds the shared helpers.
+
+`tests/fixtures/` (with an s) holds the projects for the package managers. `pnpm`, `yarn-classic` and
+`yarn-berry` have no dependencies, a `packageManager` field and a lockfile made by that manager.
+`registry/` has the small registry server and the package it serves. `tests/pm_helpers.bash` builds
+the fake `npm`, `pnpm`, `yarn` and `corepack`. Each fake writes its arguments and the token and registry
+variables it sees into a log, and the scripts run with a short `PATH`, so a manager installed on your
+machine is never used.
+
+## Package managers and private registries
+
+How the install step picks the manager, with `package-manager: auto`:
+
+1. The `packageManager` field of `package.json` (`npm@x`, `pnpm@x`, `yarn@x`). `bun` or any other name fails.
+2. The lockfile: `pnpm-lock.yaml`, `yarn.lock`, `package-lock.json` or `npm-shrinkwrap.json`. A bun lockfile
+   (`bun.lock` or `bun.lockb`) with no other lockfile fails, next to another lockfile it is ignored.
+3. Otherwise npm, with `npm install` and a warning that the lockfile is missing.
+
+Lockfiles of two managers and no `packageManager` field is an error that names both files. An explicit
+`package-manager` input wins over everything, and the action still checks that the tool runs.
+
+| Manager | With a lockfile | Without a lockfile (a warning is printed) |
+|---|---|---|
+| npm | `npm ci` | `npm install` |
+| pnpm | `pnpm install --frozen-lockfile` | `pnpm install --no-frozen-lockfile` |
+| yarn classic (1.x) | `yarn install --frozen-lockfile` | `yarn install` |
+| yarn berry (2+) | `yarn install --immutable` | `yarn install --no-immutable` |
+
+Berry is detected from `packageManager: yarn@2` or newer, then a `.yarnrc.yml` file, then a `__metadata:` line
+in `yarn.lock`, then `yarn --version`. `ignore-scripts: true` adds `--ignore-scripts`, except for berry, which
+has no such flag: the action sets `YARN_ENABLE_SCRIPTS=false` for that one command. `install-command` replaces
+all of it, `ignore-scripts` has no effect then (the action warns), and the build still runs with the manager that
+detection picked (`pnpm run build`, `yarn run build`). The build step checks that this manager is on `PATH`, so an
+`install-command` that does not install it fails with a message that names the manager.
+
+**Corepack.** `corepack enable` runs when the `packageManager` field names pnpm or yarn, or when pnpm or
+yarn is chosen and not installed. The action never runs `npm install -g`. Without corepack, a manager that is
+already on `PATH` (for example from `pnpm/action-setup`) is used with a warning and still checked with `--version`.
+Without corepack and without the manager the step fails and says to install it in a step before the action, or
+to set `install-command`.
+
+**Private registries.** The action has no registry or token input of its own. Give the registry to
+`setup-node` through the two optional inputs, and give the token through the job environment:
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./ # becomes miguelcolmenares/npm-auto-build@v3 after the v3 release
+        with:
+          mode: build
+          registry-url: https://npm.pkg.github.com
+          scope: "@my-org"
+```
+
+The contract, and the tests that hold it:
+
+- `setup-node` writes an `.npmrc` with a `${NODE_AUTH_TOKEN}` placeholder, never the token. A project
+  `.npmrc` that uses the same placeholder works the same way.
+- The install and the build inherit `NODE_AUTH_TOKEN` and every `NPM_CONFIG_*`, `YARN_*` and `PNPM_*`
+  variable that the job sets. `setup-node` itself sets `NPM_CONFIG_USERCONFIG` to its `.npmrc`.
+- The GitHub token variables (`GITHUB_TOKEN`, `GH_TOKEN`, `INPUT_TOKEN`, `INPUT_GITHUB_TOKEN`,
+  `ACTIONS_RUNTIME_TOKEN`, `ACTIONS_ID_TOKEN_REQUEST_TOKEN`) never reach the install or the build.
+- The scripts never write an `.npmrc` or any other file with a credential.
+- `registry-url` is not a secret: a URL with a user name, a password, a query (`?`), a fragment (`#`) or a
+  setting such as `_authToken`, `token`, `password` or `apikey` in it is refused. An `http://` URL is
+  accepted with a warning that the token travels in clear text, unless the host is `localhost` or `127.0.0.1`.
+
+**Risk.** Do not put the GitHub token in `NODE_AUTH_TOKEN`. The action removes `GITHUB_TOKEN` from the
+install and the build, but it cannot hide a variable that you set on purpose, and the lifecycle scripts of
+the dependencies (`postinstall`) can read `NODE_AUTH_TOKEN`. Use a token made for the registry, with read
+access only. `ignore-scripts: true` also stops those scripts.
 
 ## Run the scripts by hand
 
@@ -154,5 +231,6 @@ This needs git 2.31 or newer, which every GitHub-hosted runner has.
 | `workflows` | Parses every workflow and `action.yml` |
 | `bats` | Runs `bats tests/` on Ubuntu |
 | `self-test-check` | Commits a fresh build of `tests/fixture` locally and runs the action with `mode: check`, which must pass. Then it changes the build output without committing it and runs the action again, which must fail with `stale=true`, and downloads the artifact `npm-auto-build-stale-diff` to check the diff |
-| `self-test` | Runs the action itself (`uses: ./`) against `tests/fixture` on Ubuntu, macOS and Windows in `mode: build`, and checks that `dist/out.txt` exists. It also checks that a mode that is not available yet (`pr`) fails |
 | `self-test-commit` | Runs `mode: commit` on Ubuntu on a throwaway branch, with `origin` pointed at a bare repository the job creates, so it never pushes to this repository. It checks the commit in that remote and `changed=true`, that a second run makes no commit (`changed=false`), and that a detached HEAD fails |
+| `self-test-pm` | Runs the action against `tests/fixtures/pnpm`, `yarn-classic` and `yarn-berry` on Ubuntu, and checks `dist/out.txt` of each |
+| `self-test` | Runs the action itself (`uses: ./`) against `tests/fixture` on Ubuntu, macOS and Windows in `mode: build`, and checks that `dist/out.txt` exists. It also checks that a mode that is not available yet (`pr`) fails |
