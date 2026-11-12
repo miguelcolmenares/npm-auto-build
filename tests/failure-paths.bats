@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
-# Gaps found in the review for issue 11. The input and failure cases that the other test
-# files already hold are listed in docs/testing.md and in the pull request, and are not
-# repeated here. Every test here was seen failing against a script that breaks its rule.
+# Gaps found in the review for issue 11. The input and failure cases that validate-inputs,
+# commit, check, build and install bats files already hold are not repeated here. Every
+# test here was seen failing against a script that breaks its rule.
 #
 # Git runs against a local bare repository used as `origin` (a file:// URL), so nothing
 # here needs the network or a GitHub runner.

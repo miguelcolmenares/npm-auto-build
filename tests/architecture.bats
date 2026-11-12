@@ -6,9 +6,9 @@
 #
 # What these tests cover: they look for names, for example GITHUB_TOKEN or `git push`. They
 # cannot see an indirect read such as ${!name} or a command built from pieces. Behavior is
-# tested in token.bats, commit.bats and check.bats. A shell that is not bash 3.2 safe is
-# avoided here: a bare [[ ]] or `! cmd` in a test body does not fail it, so every check
-# below is a function that returns 1, or a [ ] test.
+# tested in token.bats, commit.bats and check.bats. The tests also run on bash 3.2 (macOS),
+# where a bare [[ ]] or `! cmd` in a test body does not fail it, so every check below is a
+# function that returns 1, or a [ ] test.
 #
 # Rules already checked in action.bats are not repeated here: every script starts with
 # the shebang and `set -euo pipefail`, no single line `run:` holds an expression, and the
