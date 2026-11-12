@@ -7,6 +7,8 @@ set -e
 
 echo "🧪 Testing NPM Auto Build Action locally..."
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Check if Docker is running
 if ! docker info > /dev/null 2>&1; then
     echo "❌ Docker is not running. Please start Docker and try again."
@@ -22,10 +24,13 @@ TEST_PROJECT=${3:-"./test-project"}
 if [ ! -d "$TEST_PROJECT" ]; then
     echo "📁 Creating test project at $TEST_PROJECT..."
     mkdir -p "$TEST_PROJECT"
-    cd "$TEST_PROJECT"
-    
-    # Create package.json with build script
-    cat > package.json << EOF
+
+    # Run in a subshell so the current directory does not change
+    (
+        cd "$TEST_PROJECT" || exit 1
+
+        # Create package.json with build script
+        cat > package.json << EOF
 {
   "name": "npm-auto-build-test",
   "version": "1.0.0",
@@ -34,20 +39,19 @@ if [ ! -d "$TEST_PROJECT" ]; then
   }
 }
 EOF
-    
-    # Initialize git
-    git init
-    git config user.name "Test User" 2>/dev/null || true
-    git config user.email "test@example.com" 2>/dev/null || true
-    git add .
-    git commit -m "Initial test project" 2>/dev/null || true
-    
-    cd ..
+
+        # Initialize git
+        git init
+        git config user.name "Test User" 2>/dev/null || true
+        git config user.email "test@example.com" 2>/dev/null || true
+        git add .
+        git commit -m "Initial test project" 2>/dev/null || true
+    )
 fi
 
-# Build Docker image
+# Build Docker image from the repository root
 echo "🐳 Building Docker image..."
-docker build -t npm-auto-build-local . > /dev/null
+docker build -t npm-auto-build-local "$SCRIPT_DIR" > /dev/null
 
 # Run the action
 echo "🚀 Running action with:"

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **A failed direct push is reported once, with its real error.** The action ran `git push` a second time only to read the error text, so a retry that succeeded still ended with exit code 1. It now captures the output of the first push.
+- A stray character in the protected-branch hint no longer breaks the line.
+
+### Changed
+- The action prints a warning when the `node-version` input asks for a different Node.js major than the one in the Docker image. The input has no effect in this action, and a real one comes with v3.
+- The repository has CI now: shellcheck on every shell script, a check that the workflow files parse, CodeQL, and Dependabot with auto-merge for minor and patch updates. `docker-compose.yml` is removed and the local test scripts no longer use a hard-coded path. None of this changes how the action runs.
+
 ## [2.1.2] - 2025-11-10
 
 ### Fixed

@@ -30,9 +30,21 @@ BUILD_DIR="${INPUT_BUILD_DIR:-"dist"}"
 GITHUB_TOKEN="$INPUT_GITHUB_TOKEN"
 GIT_USER_NAME="${INPUT_GIT_USER_NAME:-"github-actions[bot]"}"
 GIT_USER_EMAIL="${INPUT_GIT_USER_EMAIL:-"github-actions[bot]@users.noreply.github.com"}"
-NODE_VERSION="${INPUT_NODE_VERSION:-"20"}"
 BUILD_ONLY="${INPUT_BUILD_ONLY:-"false"}"
 CREATE_PR="${INPUT_CREATE_PR:-"false"}"
+
+# The Docker image fixes the Node.js version, so the node-version input has no
+# effect here. Warn when it asks for a different major version than the one running.
+if [ -n "${INPUT_NODE_VERSION:-}" ]; then
+    running_node_major=$(node --version)
+    running_node_major=${running_node_major#v}
+    running_node_major=${running_node_major%%.*}
+    requested_node_major=${INPUT_NODE_VERSION#v}
+    requested_node_major=${requested_node_major%%.*}
+    if [ "$requested_node_major" != "$running_node_major" ]; then
+        log_warn "Input node-version '$INPUT_NODE_VERSION' is ignored. The Docker image fixes Node.js to major version $running_node_major, and the input has no effect until v3."
+    fi
+fi
 
 log_info "Starting NPM Auto Build Action"
 log_info "Project directory: $PROJECT_DIR"
@@ -242,7 +254,9 @@ This PR was created automatically because the target branch is protected." \
 else
     # Direct push (original behavior)
     log_info "Pushing changes to repository..."
-    if git push; then
+    # Capture the output of the first push, so a failure is reported once with its real error
+    if push_output=$(git push 2>&1); then
+        printf '%s\n' "$push_output"
         log_info "✅ Build completed and committed successfully!"
         log_info "Build directory '$BUILD_DIR' has been updated and pushed to the repository."
         
@@ -250,8 +264,9 @@ else
         log_info "Latest commit:"
         git log --oneline -1
     else
+        printf '%s\n' "$push_output"
         # Check if it's a protected branch issue
-        if git push 2>&1 | grep -q "protected branch\|Changes must be made through a pull request"; then
+        if printf '%s\n' "$push_output" | grep -q "protected branch\|Changes must be made through a pull request"; then
             log_error "❌ Failed to push: Protected branch detected!"
             log_error ""
             log_error "The target branch has protection rules that prevent direct pushes."
@@ -262,7 +277,7 @@ else
             log_error "2. Use a Personal Access Token (PAT) with bypass permissions"
             log_error "3. Temporarily disable branch protection for automated builds"
             log_error ""
-            log_error "� Quick fix - Add to your workflow:"
+            log_error "Quick fix - Add to your workflow:"
             log_error "   uses: miguelcolmenares/npm-auto-build@v2"
             log_error "   with:"
             log_error "     github-token: \${{ secrets.GITHUB_TOKEN }}"

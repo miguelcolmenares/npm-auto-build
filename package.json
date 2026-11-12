@@ -1,8 +1,8 @@
 {
     "name": "npm-auto-build",
-    "version": "1.0.0",
+    "version": "2.1.2",
+    "private": true,
     "description": "Automatically build and commit your npm project's build files to your repository",
-    "main": "entrypoint.sh",
     "repository": {
         "type": "git",
         "url": "https://github.com/miguelcolmenares/npm-auto-build.git"
@@ -17,8 +17,7 @@
         "deployment"
     ],
     "scripts": {
-        "test": "mkdir -p test-output && echo 'Test build completed successfully!' > test-output/build-info.txt",
-        "build": "echo 'No build step needed for this action'"
+        "test": "git ls-files '*.sh' | xargs shellcheck"
     },
     "dependencies": {},
     "author": {

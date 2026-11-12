@@ -1,0 +1,202 @@
+name: Auto-merge Dependabot PRs
+
+# Auto-merge Dependabot's minor and patch updates once the required checks pass
+# AND the bumped npm versions have aged past a release-age cooldown. Runs on
+# `pull_request`; the job-level `permissions:` block elevates the GITHUB_TOKEN
+# for Dependabot's own PRs. Major updates are left for manual review, matching
+# the grouping in .github/dependabot.yml, which groups only minor and patch updates.
+# Docker image updates are never auto-merged, because no check here builds the image.
+#
+# Release-age cooldown (supply-chain guard): a freshly-published version is the
+# window in which a compromised or broken release is most likely still live.
+# `npm ci` runs a dependency's install scripts on the runner, so a bad release
+# is a risk the test suite would not catch. The cooldown holds auto-merge until
+# every bumped npm version in the PR has been public for a minimum number of
+# days (patch: 3, minor: 7). A held PR stays open for a human to review and
+# merge. Nothing is rejected, only kept from merging itself too soon.
+#
+# The cooldown reads publish times from the npm registry. Dependencies of the
+# `github-actions` ecosystem are not npm packages (the registry returns 404), so
+# they skip the cooldown and merge on the required checks as before.
+#
+# This workflow is only half the gate. The other half is branch protection on
+# `main`, which must list these checks as required: `shellcheck`, `workflows`
+# and `Analyze (actions)` (CodeQL). Without that, `gh pr merge --auto` has
+# nothing to wait for. If auto-merge ever lands a red commit, check the
+# protection rule before changing this file.
+#
+# If `main` requires an approving review, the approval step below supplies it
+# for Dependabot's PRs only. GITHUB_TOKEN cannot approve a pull request in the
+# same repository, so that step uses `secrets.AUTO_APPROVE_TOKEN`, a personal
+# access token that belongs to the repository owner. Approving Dependabot's PR
+# is not self-review, since the owner did not author it. Without that secret,
+# the approval step is skipped and Dependabot's PRs wait for a manual review and
+# merge. That is a safe failure mode, not a broken one.
+on: pull_request
+
+# Least privilege by default: no token scopes at the workflow level. Only the
+# job below elevates, and only for Dependabot's own PRs, so a write-scoped token
+# is never exposed to other contributors' pull requests.
+permissions: {}
+
+jobs:
+  dependabot-auto-merge:
+    runs-on: ubuntu-latest
+    # Gate the whole (write-scoped) job on the actor, not just the merge step.
+    if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    env:
+      # Job-level, not step-level: a step's own `env:` isn't visible to that
+      # same step's `if:` condition, and `secrets` isn't a context `if:` can
+      # read at all. This is the one place both the approve step's `if:` and
+      # its `run:` can see whether the secret is configured.
+      AUTO_APPROVE_TOKEN: ${{ secrets.AUTO_APPROVE_TOKEN }}
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+
+      - name: Enforce release-age cooldown
+        id: cooldown
+        # Majors are never auto-merged, so their age is moot. Docker images are
+        # not npm packages and are never auto-merged. Skip the check and leave
+        # `merge` unset, which the approve and merge steps already exclude.
+        if: >-
+          steps.metadata.outputs.update-type != 'version-update:semver-major' &&
+          steps.metadata.outputs.package-ecosystem != 'docker'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          UPDATED: ${{ steps.metadata.outputs.updated-dependencies-json }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+        with:
+          script: |
+            const DAY = 86_400_000;
+            const HOLD_MARKER = "<!-- dependabot-cooldown-hold -->";
+            const updated = JSON.parse(process.env.UPDATED || "[]");
+            // A grouped PR carries several deps; fetch-metadata reports the
+            // highest bump in the group as update-type, so a group holding any
+            // minor lands on the 7-day threshold, the conservative choice.
+            const isPatch =
+              process.env.UPDATE_TYPE === "version-update:semver-patch";
+            const minDays = isPatch ? 3 : 7;
+            const now = Date.now();
+
+            const checked = [];
+            const skipped = [];
+            const young = [];
+            for (const dep of updated) {
+              const name = dep.dependencyName;
+              const version = dep.newVersion;
+              if (!name || !version) {
+                // No metadata to verify, so fail closed rather than wave it through.
+                young.push(`${name ?? "unknown"} (missing version metadata)`);
+                continue;
+              }
+              let publishedAt;
+              try {
+                const res = await fetch(
+                  `https://registry.npmjs.org/${name.replace("/", "%2F")}`,
+                  { headers: { "user-agent": "dependabot-cooldown" } },
+                );
+                if (res.status === 404) {
+                  // Not on npm. This repo also runs the `github-actions`
+                  // ecosystem, whose deps (`actions/checkout`, ...) are not npm
+                  // packages. The npm cooldown does not apply, so let the
+                  // required checks gate it instead of holding it forever.
+                  skipped.push(`${name}@${version} (not an npm package)`);
+                  continue;
+                }
+                if (!res.ok) throw new Error(`registry ${res.status}`);
+                publishedAt = (await res.json()).time?.[version];
+              } catch (err) {
+                // A registry hiccup must not auto-merge an unverified version.
+                young.push(`${name}@${version} (registry lookup failed: ${err.message})`);
+                continue;
+              }
+              if (!publishedAt) {
+                young.push(`${name}@${version} (no publish time on registry)`);
+                continue;
+              }
+              const ageDays = (now - new Date(publishedAt).getTime()) / DAY;
+              checked.push(`${name}@${version}: ${ageDays.toFixed(1)}d`);
+              if (ageDays < minDays) {
+                young.push(`${name}@${version} (${ageDays.toFixed(1)}d < ${minDays}d)`);
+              }
+            }
+
+            core.info(`Release-age cooldown threshold: ${minDays} day(s).`);
+            for (const line of checked) core.info(`  ${line}`);
+            for (const line of skipped) core.info(`  skipped: ${line}`);
+
+            const ok = young.length === 0;
+            core.setOutput("merge", ok ? "true" : "false");
+            if (ok) return;
+
+            core.warning(`Auto-merge held by cooldown: ${young.join("; ")}`);
+
+            // Comment once, not on every rebase-triggered re-run.
+            try {
+              const prNumber = context.payload.pull_request.number;
+              const { data: comments } =
+                await github.rest.issues.listComments({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  per_page: 100,
+                });
+              if (comments.some((c) => c.body?.includes(HOLD_MARKER))) return;
+              const body = [
+                HOLD_MARKER,
+                `**Auto-merge held by the release-age cooldown** (minimum ${minDays} day(s)).`,
+                "",
+                "These bumped versions are too new to auto-merge, as a guard against freshly-published malicious or broken releases:",
+                "",
+                ...young.map((y) => `- ${y}`),
+                "",
+                "The PR stays open for manual review. It will not merge on its own. Re-run this workflow (or merge manually) once the versions have aged.",
+              ].join("\n");
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            } catch (err) {
+              // The comment is courtesy; the gate is `merge=false`. Never let a
+              // comment failure fail the step and imply something merged.
+              core.warning(`Could not post cooldown comment: ${err.message}`);
+            }
+
+      - name: Approve, satisfying the required-review branch protection rule
+        # Same gating as the merge step below (skip majors, require cooldown
+        # clear). An approval with nothing to act on is just noise. Silently
+        # does nothing when the secret isn't set, which is a real state (see
+        # the header comment): Dependabot's PRs then need a manual review.
+        if: >-
+          steps.metadata.outputs.update-type != 'version-update:semver-major' &&
+          steps.cooldown.outputs.merge == 'true' &&
+          env.AUTO_APPROVE_TOKEN != ''
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ env.AUTO_APPROVE_TOKEN }}
+        run: gh pr review --approve "$PR_URL"
+
+      - name: Enable auto-merge for minor and patch updates
+        # Skip semver-major bumps; they need a human. Also require the cooldown to
+        # have cleared every bumped version. Reads the update type from the
+        # Dependabot metadata rather than parsing the PR title.
+        if: >-
+          steps.metadata.outputs.update-type != 'version-update:semver-major' &&
+          steps.cooldown.outputs.merge == 'true'
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # `--auto` waits only for the checks that branch protection marks as
+          # *required*. With none configured it merges as soon as the PR is
+          # mergeable, so the required checks listed in the header must be set
+          # on `main` for this line to mean what it claims.
+          gh pr merge --auto --squash "$PR_URL"
