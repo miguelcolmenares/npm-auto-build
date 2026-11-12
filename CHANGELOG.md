@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OpenSSF Scorecard (`.github/workflows/scorecard.yml`) and a dependency review on pull requests (`.github/workflows/dependency-review.yml`).
 - `docs/threat-model.md`: the assets, actors, trust boundaries and threats of the action, and the known v2 findings with the v3 fix for each.
 - `SECURITY.md`: how to report a vulnerability, which versions are supported, and the response times.
+- `docs/architecture.md` and `tests/architecture.bats` (issue #11): the two trust zones, what each script may do, and tests that fail when a script outside the allowlist reads a token variable, runs `git push` or `git fetch`, calls a network tool, or when a `run:` block holds a `${{ }}` expression. `tests/failure-paths.bats` adds tests for long values in every input, a leading dash, a fork pull request, a failed build and two runs at the same time. The last one found that a push that loses a ref lock race (`cannot lock ref`) was not retried, so `commit.sh` now treats it like a rejected push.
 
 ### Changed
 - The git helpers that mode commit and mode pr share (the credential header, the git version check, the branch and path checks) moved from `scripts/commit.sh` to `scripts/git-lib.sh`. Nothing changed in how mode commit behaves. The detached HEAD and protected branch messages of mode commit now point to `mode: pr` without saying it is not available.

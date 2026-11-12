@@ -187,7 +187,7 @@ remote_head() {
 # ---------------------------------------------------------------------------
 # Failure paths
 
-@test "no step can run after a failure: the Commit step has no always(), failure() or cancelled()" {
+@test "no step on the build path has always(), failure() or cancelled(), so a failed build never reaches the Commit step" {
     # A failed install or build must stop the job before the token is used. A condition
     # with always() would run the commit step anyway. Only the diff upload may use it.
     local step cond

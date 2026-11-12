@@ -42,7 +42,7 @@ Each rule below has a test in `tests/architecture.bats`. A rule counts only afte
 
 | Rule | How it is checked |
 |---|---|
-| `install.sh` and `build.sh` never name a token variable. | The names above, plus `NAB_TOKEN` and `secrets.`, are searched in the code lines. Comments are skipped. |
+| `install.sh` and `build.sh` never name a token variable. | The six names above, plus `NAB_TOKEN`, `ACTIONS_ID_TOKEN_REQUEST_URL` and `secrets.`, are searched in the code lines. Comments are skipped. |
 | Only the allowlist scripts name a token variable. | The allowlist is at the top of the test file: `commit.sh` and `pr.sh`. `lib.sh` may name the variables only on the `-u` lines of `run_without_token`. |
 | Only the allowlist scripts run `git push`, `git fetch`, `git pull`, `git clone` or `git ls-remote`. | The same search, for the git commands that talk to a remote and for the `nab_git_remote` wrapper. A new script that needs the remote must be added to the allowlist, and this page must say why. |
 | No script calls `curl`, `wget`, `ssh`, `gh`, `npx` or another network tool. | The package manager is the only way out of the machine. |
