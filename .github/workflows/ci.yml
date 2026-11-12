@@ -34,36 +34,26 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.12"
-
-      - name: Install PyYAML
-        run: python -m pip install --quiet pyyaml
-
+      # Ruby and its YAML parser come with the runner image, so this job installs nothing:
+      # no pip or gem command, and nothing that has to be pinned by hash.
       - name: Parse workflow and action YAML files
         run: |
-          python - <<'PY'
-          import glob
-          import sys
-
-          import yaml
-
-          paths = sorted(glob.glob(".github/workflows/*.yml"))
-          paths += sorted(glob.glob("action.yml") + glob.glob("action.yaml"))
-          paths += [".github/dependabot.yml"]
-          failed = False
-          for path in paths:
-              try:
-                  with open(path, encoding="utf-8") as handle:
-                      yaml.safe_load(handle)
-                  print(f"ok    {path}")
-              except (OSError, yaml.YAMLError) as error:
-                  failed = True
-                  print(f"FAIL  {path}: {error}")
-          sys.exit(1 if failed else 0)
-          PY
+          ruby -ryaml - <<'RUBY'
+          paths = Dir[".github/workflows/*.yml"].sort
+          paths += Dir["action.yml", "action.yaml"].sort
+          paths << ".github/dependabot.yml"
+          failed = false
+          paths.each do |path|
+            begin
+              YAML.safe_load(File.read(path), aliases: true)
+              puts "ok    #{path}"
+            rescue StandardError => error
+              failed = true
+              puts "FAIL  #{path}: #{error.message}"
+            end
+          end
+          exit(failed ? 1 : 0)
+          RUBY
 
   # Bats is installed from the Ubuntu archive. That keeps one more third-party action
   # out of the supply chain, and the distribution pins the version. The tests only
