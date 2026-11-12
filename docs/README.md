@@ -4,6 +4,7 @@ Welcome to the comprehensive documentation for NPM Auto Build Action.
 
 ## 📖 Documentation Index
 
+- **[Architecture](architecture.md)** - The two trust zones, what each script may do, and the rules the tests enforce
 - **[Testing Guide](testing.md)** - Complete guide for local testing
 - **[Examples](../examples/README.md)** - Usage examples for different frameworks
 - **[Main README](../README.md)** - Getting started and basic usage
