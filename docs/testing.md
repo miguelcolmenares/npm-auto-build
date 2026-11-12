@@ -23,6 +23,8 @@ On Ubuntu: `sudo apt-get install -y shellcheck bats`. The tests need Node.js and
 
 | File | What it covers |
 |---|---|
+| `tests/architecture.bats` | The rules in [architecture.md](architecture.md): which scripts may read the token, run `git push` or `git fetch`, or call a network tool, the shape of every script header, and no `${{ }}` in a `run:` block |
+| `tests/failure-paths.bats` | Gaps from the review for issue 11: a very long value in every input, a leading dash in `working-directory` and in the commit message, a fork pull request in mode commit and mode check, no step that can run the commit after a failure, and two runs at the same time on one branch |
 | `tests/validate-inputs.bats` | Mode gate, input validation, values that must stay literal text (spaces, quotes, `$()`, a leading `-`, `..`, absolute paths, newlines, very long values) |
 | `tests/aliases.bats` | The v2 inputs (`build-only`, `create-pr`, `directory`, `build-dir`, `github-token`) and their warnings |
 | `tests/install.bats` | Install command per lockfile, with fake package managers on `PATH` |

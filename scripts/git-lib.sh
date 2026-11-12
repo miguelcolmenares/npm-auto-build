@@ -183,7 +183,7 @@ nab_classify_push_failure() {
     local output=$1
     if printf '%s' "$output" | grep -Eqi 'GH006|GH013|protected branch|repository rule violations'; then
         printf 'protected'
-    elif printf '%s' "$output" | grep -Eqi 'non-fast-forward|fetch first|tip of your current branch is behind|stale info'; then
+    elif printf '%s' "$output" | grep -Eqi 'non-fast-forward|fetch first|tip of your current branch is behind|stale info|cannot lock ref|incorrect old value'; then
         printf 'behind'
     else
         printf 'other'
