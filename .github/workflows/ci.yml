@@ -307,3 +307,34 @@ jobs:
         run: |
           grep -q '^+built by a new version$' "$DIFF_DIR/diff.patch"
           test "$(cat "$DIFF_DIR/files.txt")" = "tests/fixture/dist/out.txt"
+
+  # One tiny real project per package manager. Each has a lockfile made by that manager
+  # and a packageManager field, so the action sets the manager up with corepack.
+  self-test-pm:
+    name: self-test-pm (${{ matrix.fixture }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture: [pnpm, yarn-classic, yarn-berry]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the fixture with the action
+        uses: ./
+        with:
+          mode: build
+          working-directory: tests/fixtures/${{ matrix.fixture }}
+          paths: dist
+
+      - name: Check that the build output exists
+        shell: bash
+        env:
+          FIXTURE: ${{ matrix.fixture }}
+        run: |
+          test -f "tests/fixtures/$FIXTURE/dist/out.txt"
+          cat "tests/fixtures/$FIXTURE/dist/out.txt"
+          grep -q "built by the $FIXTURE fixture" "tests/fixtures/$FIXTURE/dist/out.txt"
