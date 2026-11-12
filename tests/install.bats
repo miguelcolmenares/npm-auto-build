@@ -12,8 +12,9 @@ setup() {
     make_stub npm yarn pnpm
 }
 
+# The calls of the install, without the "<manager> --version" check that runs first.
 install_log() {
-    cat "$STUB_LOG"
+    grep -v -e ' --version$' "$STUB_LOG" || true
 }
 
 @test "package-lock.json runs npm ci" {
@@ -47,12 +48,13 @@ install_log() {
     [ "$(install_log)" = "npm install" ]
 }
 
-@test "package-lock.json wins when several lockfiles exist" {
+@test "several lockfiles of different managers fail and name them (details in package-managers.bats)" {
     touch package-lock.json yarn.lock pnpm-lock.yaml
     validate_and_load
     run bash "$SCRIPTS/install.sh"
-    [ "$status" -eq 0 ]
-    [ "$(install_log)" = "npm ci" ]
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"package-lock.json"* ]]
+    [ -z "$(install_log)" ]
 }
 
 @test "ignore-scripts adds --ignore-scripts to each package manager" {
@@ -83,7 +85,9 @@ install_log() {
     validate_and_load
     run bash "$SCRIPTS/install.sh"
     [ "$status" -eq 0 ]
-    [ "$(install_log)" = "pnpm install --frozen-lockfile" ]
+    # There is no pnpm lockfile, so the install is not frozen, and the action warns.
+    [ "$(install_log)" = "pnpm install --no-frozen-lockfile" ]
+    [[ "$output" == *"::warning::No pnpm-lock.yaml found"* ]]
 }
 
 @test "install-command overrides detection and runs once" {
