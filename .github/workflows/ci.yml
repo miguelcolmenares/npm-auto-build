@@ -125,7 +125,7 @@ jobs:
         uses: ./
         continue-on-error: true
         with:
-          mode: commit
+          mode: pr
           working-directory: tests/fixture
 
       - name: Check that the unavailable mode failed
@@ -134,7 +134,101 @@ jobs:
           OUTCOME: ${{ steps.unavailable.outcome }}
         run: |
           if [ "$OUTCOME" != "failure" ]; then
-            echo "Expected mode commit to fail, the outcome was '$OUTCOME'." >&2
+            echo "Expected mode pr to fail, the outcome was '$OUTCOME'." >&2
+            exit 1
+          fi
+
+  # Runs mode commit end to end, with no write access to this repository. The job makes a
+  # throwaway branch and points `origin` at a bare repository it creates itself, so the
+  # push never leaves the runner. A file:// remote ignores the credential header, so the
+  # bats tests cover how the header is built and passed.
+  self-test-commit:
+    name: self-test (commit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The full history, so the push to the local remote is not a shallow push.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Create a local remote and a throwaway branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init --quiet --bare --initial-branch=main "$RUNNER_TEMP/remote.git"
+          git remote set-url origin "file://$RUNNER_TEMP/remote.git"
+          git checkout --quiet -b self-test-commit
+          git push --quiet origin self-test-commit
+          echo "SEED_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Build and commit the fixture output
+        id: first
+        uses: ./
+        with:
+          mode: commit
+          working-directory: tests/fixture
+          paths: dist
+
+      - name: Check that the commit reached the remote
+        shell: bash
+        env:
+          CHANGED: ${{ steps.first.outputs.changed }}
+          COMMIT_SHA: ${{ steps.first.outputs.commit-sha }}
+        run: |
+          set -euo pipefail
+          remote="$RUNNER_TEMP/remote.git"
+          if [ "$CHANGED" != "true" ]; then
+            echo "Expected changed=true, got '$CHANGED'." >&2
+            exit 1
+          fi
+          test -n "$COMMIT_SHA"
+          test "$(git --git-dir="$remote" rev-parse self-test-commit)" = "$COMMIT_SHA"
+          test "$(git --git-dir="$remote" rev-list --count "$SEED_SHA..self-test-commit")" = "1"
+          git --git-dir="$remote" show self-test-commit:tests/fixture/dist/out.txt
+          echo "$COMMIT_SHA" > "$RUNNER_TEMP/first-sha"
+
+      - name: Run again, nothing changed
+        id: second
+        uses: ./
+        with:
+          mode: commit
+          working-directory: tests/fixture
+          paths: dist
+
+      - name: Check that the second run made no commit
+        shell: bash
+        env:
+          CHANGED: ${{ steps.second.outputs.changed }}
+        run: |
+          set -euo pipefail
+          if [ "$CHANGED" != "false" ]; then
+            echo "Expected changed=false, got '$CHANGED'." >&2
+            exit 1
+          fi
+          test "$(git --git-dir="$RUNNER_TEMP/remote.git" rev-parse self-test-commit)" = "$(cat "$RUNNER_TEMP/first-sha")"
+
+      - name: Detach HEAD, like a tag push
+        shell: bash
+        run: git checkout --quiet --detach
+
+      - name: Run on a detached HEAD
+        id: detached
+        uses: ./
+        continue-on-error: true
+        with:
+          mode: commit
+          working-directory: tests/fixture
+          paths: dist
+
+      - name: Check that the detached HEAD failed
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.detached.outcome }}
+        run: |
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "Expected a detached HEAD to fail, the outcome was '$OUTCOME'." >&2
             exit 1
           fi
 
