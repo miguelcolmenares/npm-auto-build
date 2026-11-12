@@ -1,26 +1,54 @@
 {
   "site": {
     "name": "npm-auto-build",
-    "description": "Automatically build and commit your npm project's build files to your repository",
-    "url": "https://miguelcolmenares.github.io",
+    "description": "Build your npm project and commit the build output, so you do not commit dist/ by hand.",
+    "url": "https://miguelcolmenares.com",
     "base": "/npm-auto-build/",
     "repository": "https://github.com/miguelcolmenares/npm-auto-build",
-    "license": "MIT"
+    "license": "MIT",
+    "version": "3 (in development)",
+    "installCommand": "uses: miguelcolmenares/npm-auto-build@v3",
+    "image": "/social.png"
   },
   "hero": {
-    "title": "npm-auto-build",
-    "lede": "Automatically build and commit your npm project's build files to your repository",
+    "badge": "GitHub Action \u00b7 v3 in development \u00b7 four modes",
+    "title": "Build it, then commit the output.",
+    "lede": "A GitHub Action that runs your project's build on a push and commits the build output for you, so nobody commits dist/ by hand. Your build runs without the write token.",
     "primary": {
       "label": "Get started",
-      "href": "/docs/"
+      "href": "/docs/getting-started/"
     },
     "secondary": {
-      "label": "View on GitHub",
-      "href": "https://github.com/miguelcolmenares/npm-auto-build"
+      "label": "Coming from v2?",
+      "href": "/docs/breaking-changes/"
     }
   },
-  "features": [],
-  "stats": [],
+  "features": [
+    {
+      "icon": "git-commit-horizontal",
+      "eyebrow": "mode: commit",
+      "title": "Commit the build output",
+      "text": "Builds, then commits the build output to the checked out branch. The default mode, and the original behavior of the action."
+    },
+    {
+      "icon": "shield-check",
+      "eyebrow": "mode: check",
+      "title": "Fail a stale build",
+      "text": "Builds, then fails when the committed build output is stale. Pushes nothing and reads no token, so it also works for pull requests from forks."
+    },
+    {
+      "icon": "git-pull-request",
+      "eyebrow": "mode: pr",
+      "title": "Keep one pull request",
+      "text": "Builds, then commits the output to a branch of its own and keeps one pull request up to date, for a branch that does not accept direct pushes."
+    },
+    {
+      "icon": "hammer",
+      "eyebrow": "mode: build",
+      "title": "Only build",
+      "text": "Builds and checks that the output exists. Pushes nothing, needs no write permission and reads no token."
+    }
+  ],
   "nav": [],
   "footer": {
     "links": []
@@ -37,13 +65,68 @@
       "id": "docs",
       "label": "Docs",
       "dir": "../docs",
-      "groups": []
+      "lede": "The four modes, the reference, recipes, the changes from v2 and the security documents.",
+      "groups": [
+        {
+          "name": "Start",
+          "tone": "brand",
+          "items": [
+            "getting-started",
+            "overview"
+          ]
+        },
+        {
+          "name": "Modes",
+          "tone": "brand",
+          "items": [
+            "mode-commit",
+            "mode-check",
+            "mode-pr",
+            "mode-build"
+          ]
+        },
+        {
+          "name": "Reference",
+          "tone": "neutral",
+          "items": [
+            "reference"
+          ]
+        },
+        {
+          "name": "Guides",
+          "tone": "success",
+          "items": [
+            "recipes",
+            "example-workflows",
+            "faq",
+            "testing"
+          ]
+        },
+        {
+          "name": "From v2",
+          "tone": "warn",
+          "items": [
+            "breaking-changes",
+            "migration-v2-to-v3"
+          ]
+        },
+        {
+          "name": "Security",
+          "tone": "success",
+          "items": [
+            "security",
+            "architecture",
+            "threat-model",
+            "2026-11-12"
+          ]
+        }
+      ]
     },
     {
       "id": "examples",
       "label": "Examples",
       "dir": "../examples",
-      "groups": []
+      "lede": "The workflow files of the examples directory."
     }
   ],
   "deploy": {
@@ -57,20 +140,20 @@
     "excludePaths": [],
     "replace": {},
     "denyPatterns": [],
-    "allow": []
+    "allow": [
+      "me@miguelcolmenares.com"
+    ]
   },
-  "check": {},
-  "vars": {},
   "llms": {
-    "enabled": true,
+    "enabled": false,
     "optional": [],
     "markdownPages": false
   },
   "editLink": {
-    "enabled": true,
+    "enabled": false,
     "branch": "main"
   },
   "lastUpdated": {
-    "enabled": true
+    "enabled": false
   }
 }

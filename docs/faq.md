@@ -40,7 +40,7 @@ Details: [Getting started](./getting-started.md#what-it-needs), [Breaking change
 
 No. v2 ran in a Docker container on an Alpine image. v3 is a composite action that runs on the runner itself, on Linux, macOS and Windows. Your build now sees the tools of the runner, not the ones of an Alpine image. If your build relied on something in that image, install it in a step before the action. On a self-hosted runner, the action needs bash and git, and mode `pr` also needs `gh`.
 
-Details: [Breaking changes](./breaking-changes.md#the-action-is-composite-not-docker), [Migrating from v2 to v3](./migration-v2-to-v3.md#the-action-is-composite-not-docker).
+Details: [Breaking changes](./breaking-changes.md), [Migrating from v2 to v3](./migration-v2-to-v3.md#the-action-is-composite-not-docker).
 
 ## The build finished but some paths do not exist. What do I do?
 

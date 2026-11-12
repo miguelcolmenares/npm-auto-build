@@ -11,6 +11,7 @@ on:
         "examples/**",
         "README.md",
         "CHANGELOG.md",
+        "action.yml",
         ".github/workflows/docs.yml",
       ]
   pull_request:
@@ -21,6 +22,7 @@ on:
         "examples/**",
         "README.md",
         "CHANGELOG.md",
+        "action.yml",
         ".github/workflows/docs.yml",
       ]
   # A release changes the changelog and the version the site shows, so the site is rebuilt for it.
@@ -42,11 +44,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The date of the last change of a page comes from the history of its file.
-          # A shallow clone would give every page the date of the last commit. Needed when lastUpdated is on.
-          fetch-depth: 0
+          persist-credentials: false
+      # The picture a shared link shows (site.image). It is drawn in the job, so no image is committed.
+      - uses: miguelcolmenares/social-card-action@8927027164b0022e3ba12c0736ce575d547fe4ce # v0.1.0
+        with:
+          path: site/public/social.png
+          name: "npm-auto-build"
+          description: "Build your npm project and commit the build output, so you do not commit dist/ by hand."
+          host: "miguelcolmenares.com/npm-auto-build"
       # Installs the site, builds it, checks it, and uploads the Pages artifact.
-      - uses: miguelcolmenares/docs-sitekit@v0.3.0
+      # Pinned by commit SHA like every action of this repository (the tag is v0.3.0).
+      - uses: miguelcolmenares/docs-sitekit@bf896fcbda7323bf1c4cce1376236b240c6e9054 # v0.3.0
         with:
           version: 0.3.0
 

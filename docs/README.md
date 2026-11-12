@@ -22,7 +22,7 @@ Welcome to the comprehensive documentation for NPM Auto Build Action.
 
 ### For Contributors
 - [Local Testing](testing.md)
-- [Development Scripts](../scripts/)
+- [Development Scripts](https://github.com/miguelcolmenares/npm-auto-build/tree/main/scripts)
 - [Contributing Guidelines](../README.md#contributing)
 
 ## 🔧 Advanced Configuration

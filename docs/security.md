@@ -24,7 +24,7 @@ What the workflow must do:
 |---|---|
 | [Architecture](./architecture.md) | The two trust zones, what each script may do, and the rules that `tests/architecture.bats` enforces. |
 | [Threat model](./threat-model.md) | The assets, actors and trust boundaries, the threats T1 to T12 with the control and the test for each, and the known v2 findings with the v3 fix. T12 is a checkout that kept its credentials. |
-| [Security audit, 2026-11-12](./2026-11-12.md) | The first written audit. Each statement is labeled observed, measured, estimated or proposed, and the limits of the audit are listed. |
+| [Security audit, 2026-11-12](./audits/2026-11-12.md) | The first written audit. Each statement is labeled observed, measured, estimated or proposed, and the limits of the audit are listed. |
 | [Security policy](../SECURITY.md) | How to report a vulnerability, the response times and the supported versions. |
 
 The accepted-risk column of the threat model is a proposal for the maintainer to confirm. It is not a decision yet.
