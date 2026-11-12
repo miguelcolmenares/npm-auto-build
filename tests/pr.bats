@@ -663,7 +663,17 @@ EOF
 @test "without gh on PATH the step says so, after the branch is pushed" {
     rm "$BATS_TEST_TMPDIR/spy-bin/gh"
     build
-    run env PATH="$BATS_TEST_TMPDIR/spy-bin:/usr/bin:/bin:$(dirname "$(command -v node)")" bash "$SCRIPTS/pr.sh"
+    # A GitHub runner has gh in /usr/bin, so that directory cannot be on PATH as it is. Link
+    # every tool of the system directories except gh into a directory of its own.
+    local tools="$BATS_TEST_TMPDIR/tools-without-gh" dir tool
+    mkdir -p "$tools"
+    for dir in /usr/bin /bin; do
+        for tool in "$dir"/*; do
+            [ "${tool##*/}" = gh ] && continue
+            [ -e "$tools/${tool##*/}" ] || ln -s "$tool" "$tools/${tool##*/}"
+        done
+    done
+    run env PATH="$BATS_TEST_TMPDIR/spy-bin:$tools:$(dirname "$(command -v node)")" bash "$SCRIPTS/pr.sh"
     [ "$status" -eq 1 ]
     [[ "$output" == *"The GitHub CLI (gh) was not found on PATH"* ]] || return 1
 }
