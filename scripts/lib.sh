@@ -209,6 +209,8 @@ nab_resolve_package_manager() {
 # calls it. Sets NAB_PM_VERSION. Corepack is used for pnpm and yarn, never npm install -g:
 #   - the packageManager field names the chosen manager (pnpm or yarn), or
 #   - the chosen manager is pnpm or yarn and its binary is missing.
+# Without corepack the manager that is already on PATH is used, with a warning. Without
+# corepack and without the binary the step fails.
 # npm ships with Node.js, so it never needs corepack here.
 # shellcheck disable=SC2034
 nab_prepare_package_manager() {
@@ -227,12 +229,16 @@ nab_prepare_package_manager() {
     fi
 
     if [ -n "$reason" ]; then
-        if ! command -v corepack >/dev/null 2>&1; then
-            die "Corepack is not available on this runner, so the action cannot set up $pm ($reason). Install $pm in a step before this action (for example with pnpm/action-setup for pnpm), use a Node.js version that ships corepack, or set install-command."
+        if command -v corepack >/dev/null 2>&1; then
+            log_info "Enabling corepack: $reason"
+            run_without_token corepack enable ||
+                die "'corepack enable' failed, so $pm was not set up. Install $pm in a step before this action, or set install-command."
+        elif command -v "$pm" >/dev/null 2>&1; then
+            # For example pnpm/action-setup, or a yarn that the runner image ships.
+            log_warn "Corepack is not available ($reason), so the action uses the $pm that is already installed. It may not be the version that package.json asks for."
+        else
+            die "Corepack is not available on this runner, and $pm is not installed ($reason). Install $pm in a step before this action (for example with pnpm/action-setup for pnpm), use a Node.js version that ships corepack, or set install-command."
         fi
-        log_info "Enabling corepack: $reason"
-        run_without_token corepack enable ||
-            die "'corepack enable' failed, so $pm was not set up. Install $pm in a step before this action, or set install-command."
     fi
 
     command -v "$pm" >/dev/null 2>&1 ||

@@ -39,6 +39,8 @@ main() {
 
     nab_resolve_package_manager
     local pm=$NAB_RESOLVED_PM
+    command -v "$pm" >/dev/null 2>&1 ||
+        die "The build needs $pm, but it was not found on PATH. Install $pm in a step before this action, add the packageManager field to package.json so that the install step can set it up with corepack, or make your install-command install it."
     log_info "Running the build: $pm run $command"
     run_without_token "$pm" run "$command"
 

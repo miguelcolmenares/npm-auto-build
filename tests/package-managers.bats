@@ -369,6 +369,9 @@ setup() {
 }
 
 @test "ignore-scripts: yarn berry has no flag, YARN_ENABLE_SCRIPTS=false is set for that command only" {
+    # The job sets the opposite, so the version check shows the job value and the
+    # install shows the one that the action sets.
+    export YARN_ENABLE_SCRIPTS=true
     export INPUT_IGNORE_SCRIPTS=true
     touch yarn.lock .yarnrc.yml
     stub_on_path yarn
@@ -377,8 +380,7 @@ setup() {
     [ "$(calls)" = "yarn install --immutable" ]
     env_of "yarn install --immutable" | grep -qx 'YARN_ENABLE_SCRIPTS=false'
     # The version check ran before, with the environment of the job.
-    run env_of "yarn --version"
-    [[ "$output" != *"YARN_ENABLE_SCRIPTS"* ]] || false
+    env_of "yarn --version" | grep -qx 'YARN_ENABLE_SCRIPTS=true'
 }
 
 @test "ignore-scripts off: yarn berry does not get YARN_ENABLE_SCRIPTS" {
@@ -453,14 +455,36 @@ setup() {
     [[ "$output" == *"install-command"* ]] || false
 }
 
-@test "without corepack a packageManager field of yarn fails the same way" {
+@test "without corepack a packageManager field of yarn uses the yarn on PATH and warns" {
     write_project "yarn@4.1.0"
     touch yarn.lock
     stub_on_path yarn
     run_install
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"::warning::Corepack is not available"* ]] || false
+    [[ "$output" == *"already installed"* ]] || false
+    # The manager is still checked, and the field decides berry.
+    [ "$(cat "$STUB_LOG")" = $'yarn --version\nyarn install --immutable' ]
+}
+
+@test "without corepack a broken yarn on PATH still fails the version check" {
+    write_project "yarn@4.1.0"
+    touch yarn.lock
+    export STUB_BROKEN=yarn
+    stub_on_path yarn
+    run_install
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"'yarn --version' failed"* ]] || false
+}
+
+@test "without corepack and without the binary a packageManager field of yarn fails" {
+    write_project "yarn@4.1.0"
+    touch yarn.lock
+    run_install
     [ "$status" -eq 1 ]
     [[ "$output" == *"::error::Corepack is not available"* ]] || false
-    [[ "$output" == *"packageManager field"* ]] || false
+    [[ "$output" == *"yarn is not installed"* ]] || false
+    [[ "$output" == *"install-command"* ]] || false
 }
 
 @test "a failing corepack enable is a clear error" {
@@ -475,8 +499,8 @@ setup() {
 }
 
 @test "the scripts download nothing themselves: no curl, wget or npm install -g" {
-    # Comments are left out, they may say what the scripts never do.
-    run bash -c "grep -hvE '^[[:space:]]*#' \"$SCRIPTS\"/*.sh | grep -nE '\\b(curl|wget)\\b|install +(-g|--global)|\\bnpx\\b'"
+    # Comments are left out, they may say what the scripts never do. No GNU-only \b here.
+    run bash -c 'grep -hvE "^[[:space:]]*#" "$1"/*.sh | grep -nE "(^|[^[:alnum:]_])(curl|wget|npx)([^[:alnum:]_]|$)|install +(-g|--global)"' _ "$SCRIPTS"
     [ "$status" -eq 1 ]
 }
 
@@ -516,6 +540,26 @@ setup() {
     run_script build.sh
     [ "$status" -eq 0 ]
     [ "$(cat "$STUB_LOG")" = "yarn run build" ]
+}
+
+@test "build: a manager that is not installed is a clear error, not a bare 127" {
+    touch pnpm-lock.yaml
+    stub_on_path npm
+    run_build
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"::error::The build needs pnpm, but it was not found on PATH"* ]] || false
+    [[ "$output" == *"install-command"* ]] || false
+    [ ! -s "$STUB_LOG" ]
+}
+
+@test "build: after an install-command that installs nothing the error names the manager" {
+    write_project "yarn@4.1.0"
+    export INPUT_INSTALL_COMMAND='true'
+    run_install
+    [ "$status" -eq 0 ]
+    run_script build.sh
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"The build needs yarn"* ]] || false
 }
 
 @test "build: the same manager as the install, chosen by the field" {
