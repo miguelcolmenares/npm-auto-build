@@ -1,0 +1,115 @@
+name: Workflow security
+
+# Static checks of the workflow and action files themselves:
+# actionlint (syntax and expression errors), zizmor (injection, dangerous
+# triggers, excessive permissions, unpinned actions) and a pin check that
+# fails when a `uses:` is not a full commit SHA.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege: the checks only read the repository.
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # No maintained actionlint action is used on purpose. The release tarball
+      # is downloaded and its sha256 is checked against the checksums file that
+      # the same release publishes. That checks the download, not the release
+      # itself, so no third-party action has to be trusted to run this check.
+      - name: Install actionlint from the release, verified by sha256
+        run: |
+          set -euo pipefail
+          version=1.7.12
+          base="https://github.com/rhysd/actionlint/releases/download/v${version}"
+          archive="actionlint_${version}_linux_amd64.tar.gz"
+          work="${RUNNER_TEMP}/actionlint"
+          mkdir -p "$work"
+          cd "$work"
+          curl -fsSL -o "$archive" "${base}/${archive}"
+          curl -fsSL -o checksums.txt "${base}/actionlint_${version}_checksums.txt"
+          grep " ${archive}\$" checksums.txt | sha256sum -c -
+          tar -xzf "$archive" actionlint
+          echo "ACTIONLINT_BIN=${work}/actionlint" >> "$GITHUB_ENV"
+
+      - name: Run actionlint
+        run: |
+          "$ACTIONLINT_BIN" -color
+
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Offline audits only, so the job needs no API token. advanced-security is
+      # off, so no security-events permission is needed and the results print
+      # in the log. The step fails when a finding is medium or higher. The CLI
+      # version is set, so a new zizmor release cannot change the result on its own.
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+        with:
+          inputs: "."
+          online-audits: "false"
+          advanced-security: "false"
+          min-severity: medium
+          version: "1.32.0"
+
+  pinned-actions:
+    name: pinned-actions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Every `uses:` must be a full 40 character commit SHA, except local
+      # actions that start with ./. Each offending line is printed with its file
+      # and line number before the step fails.
+      - name: Check that every action is pinned by commit SHA
+        shell: bash
+        run: |
+          failed=0
+          checked=0
+          for file in .github/workflows/*.yml action.yml; do
+            [ -f "$file" ] || continue
+            while IFS= read -r hit; do
+              lineno=${hit%%:*}
+              content=${hit#*:}
+              value=${content#*uses:}
+              value=${value#"${value%%[![:space:]]*}"}
+              value=${value%%#*}
+              value=${value%"${value##*[![:space:]]}"}
+              value=${value//\"/}
+              value=${value//\'/}
+              checked=$((checked + 1))
+              case "$value" in
+                ./*) continue ;;
+              esac
+              if [[ ! "$value" =~ ^[^@]+@[0-9a-f]{40}$ ]]; then
+                echo "NOT PINNED: ${file}:${lineno}: ${content# }"
+                failed=1
+              fi
+            done < <(grep -nE '^[[:space:]]*(-[[:space:]]+)?uses:' "$file" || true)
+          done
+          echo "Checked ${checked} uses: line(s)"
+          if [ "$failed" -ne 0 ]; then
+            echo "Pin every action above to a full commit SHA, with the tag in a comment."
+            exit 1
+          fi
+          echo "All actions are pinned by commit SHA."
