@@ -276,3 +276,63 @@ setup() {
     [ "$status" -eq 1 ]
     [[ "$output" == *"'command' is empty"* ]] || false
 }
+
+# A checkout that kept its credentials: the check runs here, before install and build.
+persisted_repo() {
+    git init -q "$BATS_TEST_TMPDIR/repo"
+    git -C "$BATS_TEST_TMPDIR/repo" config http.https://github.com/.extraheader "AUTHORIZATION: basic cGVyc2lzdGVkLXNlY3JldA=="
+    cd "$BATS_TEST_TMPDIR/repo"
+}
+
+@test "persisted checkout credentials fail mode commit before install, by key name only" {
+    persisted_repo
+    export INPUT_MODE=commit
+    run bash "$SCRIPTS/validate-inputs.sh"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"http.https://github.com/.extraheader"* ]] || return 1
+    [[ "$output" == *"persist-credentials: false"* ]] || return 1
+    [[ "$output" != *"cGVyc2lzdGVkLXNlY3JldA"* ]] || return 1
+    # Nothing was handed to the next steps.
+    [ -z "$(env_value NAB_MODE)" ]
+}
+
+@test "persisted checkout credentials fail mode pr before install" {
+    persisted_repo
+    export INPUT_MODE=pr
+    run bash "$SCRIPTS/validate-inputs.sh"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"persist-credentials: false"* ]] || return 1
+}
+
+@test "persisted checkout credentials only warn in mode check and mode build" {
+    persisted_repo
+    local mode
+    for mode in check build; do
+        export INPUT_MODE=$mode
+        run bash "$SCRIPTS/validate-inputs.sh"
+        [ "$status" -eq 0 ]
+        [[ "$output" == *"::warning::"*"persist-credentials: false"* ]] || return 1
+        [[ "$output" != *"cGVyc2lzdGVkLXNlY3JldA"* ]] || return 1
+    done
+}
+
+@test "a repository without a persisted header is accepted in every mode" {
+    git init -q "$BATS_TEST_TMPDIR/clean"
+    cd "$BATS_TEST_TMPDIR/clean"
+    local mode
+    for mode in commit check pr build; do
+        export INPUT_MODE=$mode
+        run bash "$SCRIPTS/validate-inputs.sh"
+        [ "$status" -eq 0 ]
+        [[ "$output" != *"extraheader"* ]] || return 1
+    done
+}
+
+@test "the credential check reads the working-directory, not only the current directory" {
+    persisted_repo
+    mkdir sub
+    export INPUT_MODE=commit INPUT_WORKING_DIRECTORY=sub
+    run bash "$SCRIPTS/validate-inputs.sh"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"persist-credentials: false"* ]] || return 1
+}
