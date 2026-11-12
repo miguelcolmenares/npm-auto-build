@@ -41,8 +41,10 @@ permissions: {}
 jobs:
   dependabot-auto-merge:
     runs-on: ubuntu-latest
-    # Gate the whole (write-scoped) job on the actor, not just the merge step.
-    if: github.actor == 'dependabot[bot]'
+    # Gate the whole (write-scoped) job on the author of the pull request, not on the actor
+    # (the actor is whoever triggered the run, such as a person who re-runs a job), and not
+    # just on the merge step.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     permissions:
       contents: write
       pull-requests: write

@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Output `stale`** is `true` or `false` in mode `check`, and the step exits 1 when it is `true`. With `upload-diff: true` the action uploads `diff.patch` and `files.txt` as the artifact `npm-auto-build-stale-diff` (7 days), when the check found stale output. `actions/upload-artifact` is pinned by commit SHA.
 - **`scripts/check.sh` works without GitHub**: it needs only bash, git and the `NAB_PATHS` variable, and prints `stale=true` or `stale=false` when `GITHUB_OUTPUT` is not set, so Bitbucket Pipelines can use it with one line. See `docs/testing.md`.
 - The validate step has a `mode` output, and the CI job `self-test-check` runs the action on the fixture, once fresh and once stale.
+- Workflow checks for this repository, in `.github/workflows/workflow-security.yml`: `actionlint`, `zizmor`, and a check that every `uses:` is pinned to a commit SHA.
+- OpenSSF Scorecard (`.github/workflows/scorecard.yml`) and a dependency review on pull requests (`.github/workflows/dependency-review.yml`).
+- `docs/threat-model.md`: the assets, actors, trust boundaries and threats of the action, and the known v2 findings with the v3 fix for each.
+- `SECURITY.md`: how to report a vulnerability, which versions are supported, and the response times.
 
 ### Changed
 - **A detached HEAD is an error in mode commit** (a tag push, or a `pull_request` event), with a message that names `mode: check`, a branch push and `mode: pr`. There is no more `HEAD` used as a branch name.

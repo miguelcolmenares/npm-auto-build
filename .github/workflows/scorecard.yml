@@ -1,0 +1,40 @@
+name: Scorecard
+
+# OpenSSF Scorecard: scores the repository's security practices. Results go to
+# the code scanning tab as SARIF, and are published so the scorecard badge and
+# the public API show the latest result.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "30 6 * * 1"
+  workflow_dispatch:
+
+# Scorecard requires no write permission at the workflow level. The write
+# scopes below are set on the job only, as the Scorecard documentation asks.
+permissions:
+  contents: read
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      # Upload the SARIF results to code scanning.
+      security-events: write
+      # Needed to publish results (badge and API). Only this job may hold it.
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Run Scorecard
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: results.sarif
