@@ -29,7 +29,7 @@ The files that the build writes are the only thing that crosses from zone 1 to z
 
 | Script | Zone | Step | What it does | May not |
 |---|---|---|---|---|
-| `scripts/validate-inputs.sh` | 1 | Validate inputs | Reads the `INPUT_*` variables, checks every value, writes `NAB_*` to `GITHUB_ENV` and the outputs to `GITHUB_OUTPUT`. | Read the token, run the project's code, use the network. |
+| `scripts/validate-inputs.sh` | 1 | Validate inputs | Reads the `INPUT_*` variables, checks every value, reads the local git config of the working directory to refuse a checkout that kept its credentials, writes `NAB_*` to `GITHUB_ENV` and the outputs to `GITHUB_OUTPUT`. | Read the token, run the project's code, use the network. |
 | `scripts/install.sh` | 1 | Install dependencies | Installs the dependencies with the package manager, or with `install-command`. | Read the token, run git, write outside the project directory. |
 | `scripts/build.sh` | 1 | Build | Runs the build script and checks that every `paths` entry exists. | Read the token, run git, guess a build directory. |
 | `scripts/check.sh` | 1 | Check the build output | Compares the build output with `HEAD` and reports `stale`. Works outside GitHub too. | Read a token, run the project's code, use the network, change the repository. |

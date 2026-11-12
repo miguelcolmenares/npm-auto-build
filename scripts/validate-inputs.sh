@@ -3,7 +3,8 @@
 # and pass the clean values to the next steps as NAB_* variables in GITHUB_ENV.
 #
 # May do: read INPUT_* variables, write GITHUB_ENV and GITHUB_OUTPUT, print workflow
-# commands. May not: read the token value, run the project's code, touch the network.
+# commands, read the local git config of the working directory (to refuse a checkout that kept
+# its credentials). May not: read the token value, run the project's code, touch the network.
 #
 # The token inputs are never passed to this step. Only INPUT_GITHUB_TOKEN_SET
 # ("true" or "false") tells it that the v2 alias was used.
@@ -22,6 +23,25 @@ parse_bool() {
     case "$value" in
         true | false) BOOL_VALUE=$value ;;
         *) die "Input '$name' must be 'true' or 'false', got '$2'." ;;
+    esac
+}
+
+# A checkout that kept its credentials has an Authorization header in .git/config, and the
+# install and the build would run with that token readable. This runs before both. Mode commit
+# and mode pr fail, because they hold a write token and push with it. Mode check and mode build
+# only warn. Prints the key names, never the values.
+check_persisted_credentials() {
+    local mode=$1 workdir=$2 keys
+    keys=$(cd "$workdir" 2>/dev/null && git config --local --name-only --get-regexp '^http\..*extraheader$' 2>/dev/null || true)
+    [ -n "$keys" ] || return 0
+    keys=${keys//$'\n'/, }
+    case "$mode" in
+        commit | pr)
+            die "The repository config holds credentials from actions/checkout ($keys), so the install and the build could read the token. Add 'persist-credentials: false' to actions/checkout and run again."
+            ;;
+        *)
+            log_warn "The repository config holds credentials from actions/checkout ($keys), so the install and the build can read the token. Add 'persist-credentials: false' to actions/checkout."
+            ;;
     esac
 }
 
@@ -270,6 +290,8 @@ main() {
         normalize_labels "${INPUT_PR_LABELS:-}"
         pr_labels=$LABELS_VALUE
     fi
+
+    check_persisted_credentials "$mode" "$workdir"
 
     nab_write_env NAB_MODE "$mode"
     nab_write_env NAB_WORKDIR "$workdir"

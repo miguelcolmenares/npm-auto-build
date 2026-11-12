@@ -75,3 +75,9 @@ OpenSSF Scorecard runs on `main` and reports to the code scanning page. Dismisse
 | Fuzzing | The action is shell scripts with no parser and no binary input, and Scorecard does not detect fuzzing for bash. The inputs are tested with hostile values (spaces, quotes, `$()`, a leading `-`, newlines and long strings) in `tests/validate-inputs.bats` and `tests/failure-paths.bats`. |
 
 CII-Best-Practices stays open. It is closed by registering the project at bestpractices.dev and answering its questionnaire.
+
+## Threat added after the first audit
+
+| ID | Threat | Control in v3 | Test |
+|---|---|---|---|
+| T12 | A checkout that kept its credentials leaves the token in `.git/config`, where install and build code can read it | `validate-inputs.sh` refuses it in mode `commit` and mode `pr`, and warns in mode `check` and mode `build`, before the install | `tests/validate-inputs.bats`, the tests that name `persisted checkout credentials` |

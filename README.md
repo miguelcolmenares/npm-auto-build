@@ -153,7 +153,7 @@ jobs:
 Mode `commit` and mode `pr` need two things in the workflow, with the default token:
 
 - `permissions: contents: write` for the push. Mode `pr` also needs `pull-requests: write`.
-- `persist-credentials: false` on `actions/checkout`. Without it, the checkout writes the token to `.git/config`, where the install and build scripts could read it. The action prints a warning when it finds such a header.
+- `persist-credentials: false` on `actions/checkout`. Without it, the checkout writes the token to `.git/config`, where the install and build scripts could read it. The action finds such a header before the install and the build. Mode `commit` and mode `pr` fail there, and mode `check` and mode `build` print a warning.
 
 Mode `check` and mode `build` need only `contents: read` and a checkout. A `concurrency` group is a good idea whenever several runs can push to the same branch, as in the examples above. In mode `commit` and mode `pr`, the build folders in `paths` may be in `.gitignore`, because the action adds them with `git add --force`. In mode `check`, output that git does not track, ignored files included, counts as stale, so commit the build output before you use that mode. For a protected branch, see the [recipes](docs/recipes.md#protected-branch).
 
