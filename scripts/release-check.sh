@@ -33,7 +33,8 @@ MAX_DESCRIPTION=125
 PR_ONLY_CHECKS="dependency-review"
 
 # The docs that promise `@v<major>` before it exists, and the SECURITY.md row that says "not released".
-PROMISE_FILES="README.md docs/README.md docs/recipes.md docs/migration-v2-to-v3.md docs/testing.md examples/README.md"
+# The README, the examples and every page of docs/ except the release procedure, which quotes the sentence on purpose.
+PROMISE_FILES="README.md examples/README.md docs/*.md"
 
 FAILS=0
 SKIPS=0
@@ -380,8 +381,10 @@ check_tag_commit() {
 # What to do after the release. Never a failure.
 collect_todos() {
     local file hits count=0 files=""
+    # shellcheck disable=SC2086 # the glob in PROMISE_FILES must expand
     for file in $PROMISE_FILES; do
         [ -f "$file" ] || continue
+        [ "$file" != "docs/releasing.md" ] || continue
         hits=$(grep -c "after the v$MAJOR release" "$file" || true)
         if [ "$hits" -gt 0 ]; then
             count=$((count + hits))
@@ -393,6 +396,9 @@ collect_todos() {
     fi
     if [ -f SECURITY.md ] && grep -q 'Not released yet' SECURITY.md; then
         todo "After the release, change the v$MAJOR row of SECURITY.md that says it is not released yet"
+    fi
+    if [ -f site/sitekit.config.json ] && grep -q 'in development' site/sitekit.config.json; then
+        todo "After the release, remove \"in development\" from site/sitekit.config.json (the version and the home badge)"
     fi
 }
 
