@@ -33,7 +33,8 @@ ACTION="$BATS_TEST_DIRNAME/../action.yml"
 }
 
 @test "there is no env: at the top level of the action or the steps list" {
-    ! grep -E '^  env:|^env:' "$ACTION"
+    run grep -E '^  env:|^env:' "$ACTION"
+    [ "$status" -eq 1 ]
 }
 
 @test "setup-node is pinned by a full commit SHA with a version comment" {

@@ -26,9 +26,9 @@ setup() {
     export INPUT_MODE=commit
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::"* ]]
-    [[ "$output" == *"issue #3"* ]]
-    [[ "$output" == *"not available yet"* ]]
+    [[ "$output" == *"::error::"* ]] || false
+    [[ "$output" == *"issue #3"* ]] || false
+    [[ "$output" == *"not available yet"* ]] || false
     [ ! -s "$GITHUB_ENV" ]
 }
 
@@ -36,30 +36,30 @@ setup() {
     export INPUT_MODE=check
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::"* ]]
-    [[ "$output" == *"issue #4"* ]]
+    [[ "$output" == *"::error::"* ]] || false
+    [[ "$output" == *"issue #4"* ]] || false
 }
 
 @test "mode pr fails at once and names issue 5" {
     export INPUT_MODE=pr
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::"* ]]
-    [[ "$output" == *"issue #5"* ]]
+    [[ "$output" == *"::error::"* ]] || false
+    [[ "$output" == *"issue #5"* ]] || false
 }
 
 @test "the default mode, commit, is not available yet" {
     unset INPUT_MODE
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"issue #3"* ]]
+    [[ "$output" == *"issue #3"* ]] || false
 }
 
 @test "an unknown mode is rejected" {
     export INPUT_MODE=deploy
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"Unknown mode 'deploy'"* ]]
+    [[ "$output" == *"Unknown mode 'deploy'"* ]] || false
 }
 
 @test "paths: several entries, CRLF, indentation and a trailing blank line are normalized" {
@@ -73,14 +73,14 @@ setup() {
     export INPUT_PATHS=$'dist\n-rf'
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"must not start with '-'"* ]]
+    [[ "$output" == *"must not start with '-'"* ]] || false
 }
 
 @test "paths: an entry with .. is rejected" {
     export INPUT_PATHS="dist/../secrets"
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"must not contain '..'"* ]]
+    [[ "$output" == *"must not contain '..'"* ]] || false
 }
 
 @test "paths: absolute entries are rejected (unix, backslash and drive letter)" {
@@ -89,7 +89,7 @@ setup() {
         export INPUT_PATHS="$value"
         run bash "$SCRIPTS/validate-inputs.sh"
         [ "$status" -eq 1 ]
-        [[ "$output" == *"must be a relative path"* ]]
+        [[ "$output" == *"must be a relative path"* ]] || false
     done
 }
 
@@ -97,21 +97,21 @@ setup() {
     export INPUT_PATHS=""
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"'paths' is empty"* ]]
+    [[ "$output" == *"'paths' is empty"* ]] || false
 }
 
 @test "paths: a blank line between entries is rejected" {
     export INPUT_PATHS=$'dist\n\nbuild'
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"empty entry"* ]]
+    [[ "$output" == *"empty entry"* ]] || false
 }
 
 @test "paths: a very long entry is rejected" {
     export INPUT_PATHS="$(head -c 2000 /dev/zero | tr '\0' 'a')"
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"too long"* ]]
+    [[ "$output" == *"too long"* ]] || false
 }
 
 @test "paths: more than 50 entries are rejected" {
@@ -122,22 +122,22 @@ setup() {
     export INPUT_PATHS="$value"
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"more than 50 entries"* ]]
+    [[ "$output" == *"more than 50 entries"* ]] || false
 }
 
 @test "working-directory: .. is rejected" {
     export INPUT_WORKING_DIRECTORY="../other"
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"working-directory"* ]]
-    [[ "$output" == *"'..'"* ]]
+    [[ "$output" == *"working-directory"* ]] || false
+    [[ "$output" == *"'..'"* ]] || false
 }
 
 @test "working-directory: an absolute path is rejected" {
     export INPUT_WORKING_DIRECTORY="/tmp"
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"relative path"* ]]
+    [[ "$output" == *"relative path"* ]] || false
 }
 
 @test "working-directory: an empty value means the workspace root" {
@@ -166,7 +166,7 @@ setup() {
     export INPUT_INSTALL_COMMAND="npm ci"$'\n'"NAB_MODE=evil"
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"single line"* ]]
+    [[ "$output" == *"single line"* ]] || false
     [ ! -s "$GITHUB_ENV" ]
 }
 
@@ -183,7 +183,7 @@ setup() {
             echo "$name accepted a newline" >&2
             return 1
         }
-        [[ "$output" == *"single line"* ]]
+        [[ "$output" == *"single line"* ]] || false
     done
 }
 
@@ -191,21 +191,21 @@ setup() {
     export INPUT_COMMAND=$'build\rx'
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"single line"* ]]
+    [[ "$output" == *"single line"* ]] || false
 }
 
 @test "a very long value is rejected" {
     export INPUT_COMMAND="$(head -c 5000 /dev/zero | tr '\0' 'a')"
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"too long"* ]]
+    [[ "$output" == *"too long"* ]] || false
 }
 
 @test "a command that starts with a dash is rejected" {
     export INPUT_COMMAND="--version"
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"must not start with '-'"* ]]
+    [[ "$output" == *"must not start with '-'"* ]] || false
 }
 
 @test "an error message cannot carry a workflow command from a value" {
@@ -214,7 +214,7 @@ setup() {
     [ "$status" -eq 1 ]
     # The only line that starts with :: is our own, and the value sits on that line.
     [ "$(printf '%s\n' "$output" | grep -c '^::')" -eq 1 ]
-    [[ "$output" == *"%0A"* ]]
+    [[ "$output" == *"%0A"* ]] || false
 }
 
 @test "booleans must be true or false, in any case" {
@@ -226,14 +226,14 @@ setup() {
     export INPUT_IGNORE_SCRIPTS=yes
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"'ignore-scripts' must be 'true' or 'false'"* ]]
+    [[ "$output" == *"'ignore-scripts' must be 'true' or 'false'"* ]] || false
 }
 
 @test "an unsupported package manager is rejected" {
     export INPUT_PACKAGE_MANAGER=bun
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"not supported"* ]]
+    [[ "$output" == *"not supported"* ]] || false
 }
 
 @test "node-version-file wins over node-version" {
@@ -247,7 +247,7 @@ setup() {
     export INPUT_NODE_VERSION_FILE="../.nvmrc"
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"node-version-file"* ]]
+    [[ "$output" == *"node-version-file"* ]] || false
 }
 
 @test "node-version accepts the usual specs and rejects shell characters" {
@@ -263,12 +263,12 @@ setup() {
     export INPUT_NODE_VERSION='24; touch x'
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"not allowed in a version"* ]]
+    [[ "$output" == *"not allowed in a version"* ]] || false
 }
 
 @test "an empty command is rejected" {
     export INPUT_COMMAND=""
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"'command' is empty"* ]]
+    [[ "$output" == *"'command' is empty"* ]] || false
 }

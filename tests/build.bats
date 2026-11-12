@@ -16,7 +16,7 @@ setup() {
     run bash "$SCRIPTS/build.sh"
     [ "$status" -eq 0 ]
     [ "$(cat dist/out.txt)" = "built by the fixture" ]
-    [[ "$output" == *"Build finished, every path exists"* ]]
+    [[ "$output" == *"Build finished, every path exists"* ]] || false
 }
 
 @test "the build runs in working-directory" {
@@ -35,10 +35,10 @@ setup() {
     validate_and_load
     run bash "$SCRIPTS/build.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::The build finished but these paths do not exist"* ]]
-    [[ "$output" == *"'build', 'lib/types'. Fix 'paths'"* ]]
+    [[ "$output" == *"::error::The build finished but these paths do not exist"* ]] || false
+    [[ "$output" == *"'build', 'lib/types'. Fix 'paths'"* ]] || false
     # dist exists, so it must not be listed as missing.
-    [[ "$output" != *"'dist'"* ]]
+    [[ "$output" != *"'dist'"* ]] || false
 }
 
 @test "there is no directory guessing: a build in another directory does not count" {
@@ -48,7 +48,7 @@ setup() {
     run bash "$SCRIPTS/build.sh"
     [ "$status" -eq 1 ]
     [ -d build ]
-    [[ "$output" == *"do not exist"*"'dist'"* ]]
+    [[ "$output" == *"do not exist"*"'dist'"* ]] || false
 }
 
 @test "an unknown script lists the scripts that exist" {
@@ -56,8 +56,8 @@ setup() {
     validate_and_load
     run bash "$SCRIPTS/build.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::Script 'compile' is not defined in package.json"* ]]
-    [[ "$output" == *"  build"* ]]
+    [[ "$output" == *"::error::Script 'compile' is not defined in package.json"* ]] || false
+    [[ "$output" == *"  build"* ]] || false
 }
 
 @test "a command with shell syntax is never executed" {
@@ -67,7 +67,7 @@ setup() {
     run bash "$SCRIPTS/build.sh"
     [ "$status" -eq 1 ]
     [ ! -e "$marker" ]
-    [[ "$output" == *"is not defined in package.json"* ]]
+    [[ "$output" == *"is not defined in package.json"* ]] || false
 }
 
 @test "a path with shell syntax is only checked as a name" {
@@ -92,11 +92,11 @@ setup() {
     validate_and_load
     run bash "$SCRIPTS/build.sh"
     [ "$status" -ne 0 ]
-    [[ "$output" != *"these paths do not exist"* ]]
+    [[ "$output" != *"these paths do not exist"* ]] || false
 }
 
 @test "build.sh refuses to run without validated paths" {
     run bash "$SCRIPTS/build.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"run validate-inputs.sh first"* ]]
+    [[ "$output" == *"run validate-inputs.sh first"* ]] || false
 }

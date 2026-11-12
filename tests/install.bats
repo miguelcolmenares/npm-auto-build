@@ -102,7 +102,7 @@ install_log() {
     validate_and_load
     run bash "$SCRIPTS/install.sh"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"::warning::ignore-scripts has no effect"* ]]
+    [[ "$output" == *"::warning::ignore-scripts has no effect"* ]] || false
 }
 
 @test "a failing install fails the step" {
@@ -128,7 +128,7 @@ install_log() {
     validate_and_load
     run bash "$SCRIPTS/install.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::working-directory 'missing' does not exist."* ]]
+    [[ "$output" == *"::error::working-directory 'missing' does not exist."* ]] || false
 }
 
 @test "a missing package.json is a clear error" {
@@ -136,5 +136,5 @@ install_log() {
     validate_and_load
     run bash "$SCRIPTS/install.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"package.json not found"* ]]
+    [[ "$output" == *"package.json not found"* ]] || false
 }
