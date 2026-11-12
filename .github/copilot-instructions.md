@@ -14,6 +14,7 @@ This is a **GitHub Action** that builds an npm project and commits the build out
 - `scripts/commit.sh` - Mode `commit`: stages the `paths`, commits and pushes to the checked out branch. One of the two scripts that get the token, and it gives it to `git fetch` and `git push` only
 - `scripts/pr.sh` - Mode `pr`: commits the build output to a bot branch, force-pushes it with a lease (only that branch, never the base, a protected name or a branch it did not make) and keeps one pull request up to date with `gh`. The other script that gets the token: `git ls-remote`, `git fetch` and `git push` through `GIT_CONFIG_*`, and `gh` as `GH_TOKEN` for one command
 - `scripts/check.sh` - Compares the build output with `HEAD` (mode `check`), reads no token, runs without GitHub too
+- `scripts/release-check.sh` - Maintainer tool, not part of the action: checks that a release is ready (before the tag) or that the tagged commit is good (in `release.yml`). Read only. `docs/releasing.md` is the procedure
 - `tests/` - bats tests and the fixture project in `tests/fixture/`
 - `examples/` - Complete v3 workflow files, checked against `action.yml` by `tests/docs-examples.py`
 - `docs/recipes.md` and `docs/migration-v2-to-v3.md` - Setups and the v2 to v3 changes, checked by the same script

@@ -23,6 +23,15 @@ load helpers
 TOKEN_SCRIPTS="commit.sh pr.sh git-lib.sh"
 OPTIONAL_TOKEN_SCRIPTS=""
 
+# Maintainer tools: scripts for the person who releases, not part of the action. action.yml never
+# runs them (a test below checks that). They may read the remote with `git ls-remote` and call `gh`,
+# and nothing else beyond what every script may do. They hold no token: they name no token variable
+# (the token rule above covers them), and a person or the release workflow gives `gh` its credentials.
+# A test below fails when one of them can write: no git push, commit, tag or fetch, no gh release, pr
+# or issue command, no gh api with a method or a field. To add one, add its name here and say why in
+# docs/architecture.md.
+MAINTAINER_SCRIPTS="release-check.sh"
+
 # The names of the variables that carry a token. NODE_AUTH_TOKEN is not here on purpose:
 # it is the registry token that the workflow author sets for the install.
 TOKEN_NAMES="GITHUB_TOKEN|GH_TOKEN|INPUT_TOKEN|INPUT_GITHUB_TOKEN|NAB_TOKEN|ACTIONS_RUNTIME_TOKEN|ACTIONS_ID_TOKEN_REQUEST_TOKEN|ACTIONS_ID_TOKEN_REQUEST_URL"
@@ -35,6 +44,13 @@ NETWORK_RE="${COMMAND_START}(${NETWORK_TOOLS})([[:space:]]|\$)|/dev/(tcp|udp)/"
 # The token scripts may run gh: pr.sh talks to the GitHub API with it, and that is its job.
 NETWORK_TOOLS_TOKEN_SCRIPTS="curl|wget|nc|ncat|netcat|socat|ssh|scp|sftp|ftp|telnet|npx"
 NETWORK_RE_TOKEN_SCRIPTS="${COMMAND_START}(${NETWORK_TOOLS_TOKEN_SCRIPTS})([[:space:]]|\$)|/dev/(tcp|udp)/"
+
+# The maintainer tools may call gh, like the token scripts, and may run `git ls-remote` to read.
+GIT_REMOTE_RE_MAINTAINER="(^|[^A-Za-z0-9_-])git([[:space:]]+[^|;&]*)?[[:space:]]+(push|fetch|pull|clone)([[:space:]]|\$)|(^|[^A-Za-z0-9_])nab_git_remote([^A-Za-z0-9_]|\$)"
+
+# What a maintainer tool must never do: a git command that changes the repository or a tag, a gh command
+# that creates or edits something, a gh api call that is not a plain GET.
+MAINTAINER_WRITE_RE="(^|[^A-Za-z0-9_-])git([[:space:]]+[^|;&]*)?[[:space:]]+(push|fetch|pull|clone|commit|add|rm|mv|tag|branch|checkout|switch|reset|merge|rebase|stash|cherry-pick|revert|apply|am|config|update-ref|worktree)([[:space:]]|\$)|(^|[^A-Za-z0-9_-])gh[[:space:]]+(release|pr|issue|repo|workflow|run|label|secret|variable|ruleset|auth)([[:space:]]|\$)|(^|[^A-Za-z0-9_-])gh[[:space:]]+api[[:space:]][^|;&]*([[:space:]]-X|[[:space:]]--method|[[:space:]]-[fF][[:space:]]|[[:space:]]--(field|raw-field|input))"
 
 # git commands that talk to a remote, and the wrapper that gives them the token.
 GIT_REMOTE_RE="(^|[^A-Za-z0-9_-])git([[:space:]]+[^|;&]*)?[[:space:]]+(push|fetch|pull|clone|ls-remote)([[:space:]]|\$)|(^|[^A-Za-z0-9_])nab_git_remote([^A-Za-z0-9_]|\$)"
@@ -127,6 +143,48 @@ header_of() {
     done
 }
 
+@test "the maintainer tools exist, are not run by action.yml and cannot write" {
+    local name
+    for name in $MAINTAINER_SCRIPTS; do
+        [ -f "$SCRIPTS/$name" ] || {
+            echo "the maintainer list names $name, but scripts/$name does not exist" >&2
+            return 1
+        }
+        # The action must not run a release tool, and a release tool must not hold the token scripts' role.
+        if grep -q "$name" "$REPO_ROOT/action.yml"; then
+            echo "action.yml names $name, a maintainer tool" >&2
+            return 1
+        fi
+        in_list "$name" "$TOKEN_SCRIPTS" && {
+            echo "$name is on both the token list and the maintainer list" >&2
+            return 1
+        }
+        assert_no_hits "$SCRIPTS/$name" "$MAINTAINER_WRITE_RE"
+    done
+}
+
+@test "control: the maintainer write rule sees a git push, a tag, a gh release and a gh api POST" {
+    # Proves that the test above can fail. The rule runs on a file that breaks it, line by line.
+    local file="$BATS_TEST_TMPDIR/bad.sh" line
+    for line in 'git push origin main' 'git tag -a v1 -m x' 'git -C dir commit -m x' 'gh release create v1' \
+        'gh pr merge 1' 'gh api repos/x/y -X POST' 'gh api repos/x/y -f a=b' 'gh api repos/x/y --method PATCH'; do
+        printf '%s\n' "$line" >"$file"
+        run code_hits "$file" "$MAINTAINER_WRITE_RE"
+        [ -n "$output" ] || {
+            echo "the rule did not see: $line" >&2
+            return 1
+        }
+    done
+    for line in 'git rev-parse HEAD' 'git ls-remote origin' 'git status --porcelain' 'gh api repos/x/y --jq .a'; do
+        printf '%s\n' "$line" >"$file"
+        run code_hits "$file" "$MAINTAINER_WRITE_RE"
+        [ -z "$output" ] || {
+            echo "the rule flagged a read: $line" >&2
+            return 1
+        }
+    done
+}
+
 @test "the allowlist names only scripts that exist" {
     local name
     for name in $TOKEN_SCRIPTS; do
@@ -157,18 +215,22 @@ header_of() {
 # ---------------------------------------------------------------------------
 # The network
 
-@test "only the token scripts push to or fetch from a remote" {
+@test "only the token scripts push to or fetch from a remote, the maintainer tools only read it" {
     local name
     for name in $(script_names); do
         in_list "$name" "$TOKEN_SCRIPTS" && continue
-        assert_no_hits "$SCRIPTS/$name" "$GIT_REMOTE_RE"
+        if in_list "$name" "$MAINTAINER_SCRIPTS"; then
+            assert_no_hits "$SCRIPTS/$name" "$GIT_REMOTE_RE_MAINTAINER"
+        else
+            assert_no_hits "$SCRIPTS/$name" "$GIT_REMOTE_RE"
+        fi
     done
 }
 
 @test "no script calls a network tool, the package manager is the only way out" {
     local name
     for name in $(script_names); do
-        if in_list "$name" "$TOKEN_SCRIPTS"; then
+        if in_list "$name" "$TOKEN_SCRIPTS" || in_list "$name" "$MAINTAINER_SCRIPTS"; then
             assert_no_hits "$SCRIPTS/$name" "$NETWORK_RE_TOKEN_SCRIPTS"
         else
             assert_no_hits "$SCRIPTS/$name" "$NETWORK_RE"
