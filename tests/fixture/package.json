@@ -1,0 +1,9 @@
+{
+  "name": "npm-auto-build-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fixture project for the npm-auto-build tests. The build writes dist/out.txt.",
+  "scripts": {
+    "build": "node build.js"
+  }
+}
