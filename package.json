@@ -17,7 +17,7 @@
         "deployment"
     ],
     "scripts": {
-        "test": "git ls-files '*.sh' | xargs shellcheck"
+        "test": "git ls-files '*.sh' | xargs shellcheck && if command -v bats >/dev/null 2>&1; then bats tests/; else echo 'bats is not installed, skipping the bats tests (brew install bats-core)'; fi"
     },
     "dependencies": {},
     "author": {

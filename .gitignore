@@ -45,8 +45,6 @@ Thumbs.db
 test-output/
 test-project/
 
-# Docker
-.dockerignore
 # Fixture output of the tests
 tests/fixture/dist/
 tests/fixture/node_modules/
