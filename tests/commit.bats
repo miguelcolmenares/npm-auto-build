@@ -30,6 +30,9 @@ setup() {
     export GIT_CONFIG_NOSYSTEM=1
     export GIT_CONFIG_GLOBAL=/dev/null
     unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_CONFIG_COUNT
+    # On a GitHub runner these describe the workflow run, for example 18/merge, and they
+    # would trigger the branch notice in tests that expect none.
+    unset GITHUB_REF GITHUB_REF_NAME GITHUB_REF_TYPE GITHUB_HEAD_REF GITHUB_BASE_REF GITHUB_EVENT_NAME
     REAL_GIT="$(command -v git)"
 
     ORIGIN="$BATS_TEST_TMPDIR/origin.git"
