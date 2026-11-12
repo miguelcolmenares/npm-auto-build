@@ -22,27 +22,57 @@ ACTION="$BATS_TEST_DIRNAME/../action.yml"
     [ "$status" -eq 1 ]
 }
 
-@test "the token is only read by the default of its input, the alias flag and the commit step" {
+@test "the token is only read by the default of its input, the alias flag and the commit and pr steps" {
     # Any other use of the token in action.yml would be a way to reach a step.
     local uses
     uses=$(grep -nE 'github\.token|inputs\.token|inputs\.github-token|secrets\.' "$ACTION" | grep -v '^[0-9]*:\s*#' || true)
     echo "$uses" >&2
-    [ "$(printf '%s\n' "$uses" | grep -c .)" -eq 3 ]
+    [ "$(printf '%s\n' "$uses" | grep -c .)" -eq 4 ]
     printf '%s\n' "$uses" | grep -q 'default: \${{ github.token }}'
     printf '%s\n' "$uses" | grep -q "INPUT_GITHUB_TOKEN_SET: \${{ inputs.github-token != '' && 'true' || 'false' }}"
-    printf '%s\n' "$uses" | grep -q "NAB_TOKEN: \${{ inputs.github-token != '' && inputs.github-token || inputs.token }}"
+    [ "$(printf '%s\n' "$uses" | grep -c "NAB_TOKEN: \${{ inputs.github-token != '' && inputs.github-token || inputs.token }}")" -eq 2 ]
 }
 
-@test "NAB_TOKEN is in the env of the commit step and of no other step" {
-    # The line number of NAB_TOKEN must fall between the commit step name and the next step.
-    local start end token_line
-    start=$(grep -n '^    - name: Commit$' "$ACTION" | cut -d: -f1)
-    token_line=$(grep -n 'NAB_TOKEN:' "$ACTION" | cut -d: -f1)
-    [ "$(printf '%s\n' "$token_line" | grep -c .)" -eq 1 ]
+# The line number of NAB_TOKEN must fall inside the named step: after its name and before the
+# next step. Usage: token_line_in_step "Commit" (the Nth NAB_TOKEN line of the file is the one
+# that belongs to the step).
+token_line_in_step() {
+    local step=$1 start end line found=""
+    start=$(grep -n "^    - name: $step\$" "$ACTION" | cut -d: -f1)
     [ -n "$start" ]
     end=$(awk -v s="$start" 'NR > s && /^    - name:|^branding:/ {print NR; exit}' "$ACTION")
-    [ "$token_line" -gt "$start" ]
-    [ -z "$end" ] || [ "$token_line" -lt "$end" ]
+    for line in $(grep -n 'NAB_TOKEN:' "$ACTION" | cut -d: -f1); do
+        if [ "$line" -gt "$start" ] && { [ -z "$end" ] || [ "$line" -lt "$end" ]; }; then
+            found="$found $line"
+        fi
+    done
+    [ "$(printf '%s\n' $found | grep -c .)" -eq 1 ]
+}
+
+@test "NAB_TOKEN is in the env of the commit step and the pr step, and of no other step" {
+    token_line_in_step Commit
+    token_line_in_step "Pull request"
+    [ "$(grep -c 'NAB_TOKEN:' "$ACTION")" -eq 2 ]
+}
+
+@test "GH_TOKEN is never set in action.yml, only pr.sh gives it to gh for one command" {
+    run grep -nE '^\s+(GH_TOKEN|GITHUB_TOKEN):' "$ACTION"
+    [ "$status" -eq 1 ]
+}
+
+@test "the pr step runs only in mode pr, from the validate output" {
+    grep -A3 '^    - name: Pull request$' "$ACTION" | grep -q "if: steps.validate.outputs.mode == 'pr'"
+    grep -A3 '^    - name: Pull request$' "$ACTION" | grep -q '^      id: pr$'
+}
+
+@test "the pull request outputs come from the pr step" {
+    grep -A3 '^  pull-request-url:$' "$ACTION" | grep -q 'steps.pr.outputs.pull-request-url'
+    grep -A3 '^  pull-request-number:$' "$ACTION" | grep -q 'steps.pr.outputs.pull-request-number'
+}
+
+@test "no step or text of the action says that a mode is not available" {
+    run grep -n -i 'not available\|issue #5' "$ACTION"
+    [ "$status" -eq 1 ]
 }
 
 @test "the commit step runs only in mode commit, from the validate output" {

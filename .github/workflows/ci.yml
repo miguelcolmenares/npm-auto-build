@@ -124,21 +124,21 @@ jobs:
           test -f tests/fixture/dist/out.txt
           cat tests/fixture/dist/out.txt
 
-      - name: Run a mode that is not available yet
-        id: unavailable
+      - name: Run a mode that does not exist
+        id: unknown
         uses: ./
         continue-on-error: true
         with:
-          mode: pr
+          mode: deploy
           working-directory: tests/fixture
 
-      - name: Check that the unavailable mode failed
+      - name: Check that the unknown mode failed
         shell: bash
         env:
-          OUTCOME: ${{ steps.unavailable.outcome }}
+          OUTCOME: ${{ steps.unknown.outcome }}
         run: |
           if [ "$OUTCOME" != "failure" ]; then
-            echo "Expected mode pr to fail, the outcome was '$OUTCOME'." >&2
+            echo "Expected an unknown mode to fail, the outcome was '$OUTCOME'." >&2
             exit 1
           fi
 
@@ -223,6 +223,177 @@ jobs:
         continue-on-error: true
         with:
           mode: commit
+          working-directory: tests/fixture
+          paths: dist
+
+      - name: Check that the detached HEAD failed
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.detached.outcome }}
+        run: |
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "Expected a detached HEAD to fail, the outcome was '$OUTCOME'." >&2
+            exit 1
+          fi
+
+  # Runs mode pr end to end, with no write access to this repository and no GitHub API. The
+  # job makes a throwaway branch, points `origin` at a bare repository it creates itself and
+  # puts a stand-in `gh` first on PATH, so neither the push nor the pull request leaves the
+  # runner. It proves the git side for real (the bot branch, the lease, the guards) and the
+  # `gh` calls as a log. Opening a real pull request needs a repository to open it in, and the
+  # bats tests cover how the token is passed.
+  self-test-pr:
+    name: self-test (pr)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The full history, so the push to the local remote is not a shallow push.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Create a local remote, a throwaway branch and a stand-in for gh
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init --quiet --bare --initial-branch=main "$RUNNER_TEMP/remote.git"
+          git remote set-url origin "file://$RUNNER_TEMP/remote.git"
+          git checkout --quiet -b self-test-pr
+          git push --quiet origin self-test-pr
+          echo "SEED_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+          mkdir -p "$RUNNER_TEMP/fake-bin"
+          cat > "$RUNNER_TEMP/fake-bin/gh" <<'GH'
+          #!/usr/bin/env bash
+          # Stand-in for gh: logs the call (never the token, only whether one was set) and
+          # remembers the one pull request that `pr create` made.
+          state="$RUNNER_TEMP/gh-state"
+          mkdir -p "$state"
+          printf 'CALL|%s|GH_TOKEN_SET=%s\n' "$*" "${GH_TOKEN:+yes}" >> "$RUNNER_TEMP/gh.log"
+          case "$1 $2" in
+            "pr list") [ ! -f "$state/pr" ] || cat "$state/pr" ;;
+            "pr create")
+              echo "1 https://github.com/example/repo/pull/1" > "$state/pr"
+              echo "https://github.com/example/repo/pull/1"
+              ;;
+            "pr edit" | "pr merge") ;;
+            "repo view") echo squash ;;
+            *) echo "unexpected gh call: $*" >&2; exit 2 ;;
+          esac
+          GH
+          chmod +x "$RUNNER_TEMP/fake-bin/gh"
+          echo "$RUNNER_TEMP/fake-bin" >> "$GITHUB_PATH"
+
+      - name: Build the fixture and open the pull request
+        id: first
+        uses: ./
+        with:
+          mode: pr
+          working-directory: tests/fixture
+          paths: dist
+
+      - name: Check the bot branch and the pull request
+        shell: bash
+        env:
+          PR_URL: ${{ steps.first.outputs.pull-request-url }}
+          PR_NUMBER: ${{ steps.first.outputs.pull-request-number }}
+        run: |
+          set -euo pipefail
+          remote="$RUNNER_TEMP/remote.git"
+          test "$PR_URL" = "https://github.com/example/repo/pull/1"
+          test "$PR_NUMBER" = "1"
+          # The base branch did not move, the bot branch is one commit on top of it.
+          test "$(git --git-dir="$remote" rev-parse self-test-pr)" = "$SEED_SHA"
+          test "$(git --git-dir="$remote" rev-parse auto-build/self-test-pr^)" = "$SEED_SHA"
+          test "$(git --git-dir="$remote" rev-list --count "$SEED_SHA..auto-build/self-test-pr")" = "1"
+          git --git-dir="$remote" show auto-build/self-test-pr:tests/fixture/dist/out.txt
+          git --git-dir="$remote" log -1 --format=%B auto-build/self-test-pr | grep -qxF "Generated-by: npm-auto-build"
+          test "$(grep -c '^CALL|pr create ' "$RUNNER_TEMP/gh.log")" = "1"
+          grep -q '^CALL|pr create .*--base=self-test-pr --head=auto-build/self-test-pr ' "$RUNNER_TEMP/gh.log"
+          # The token reached gh as GH_TOKEN, in every call.
+          test "$(grep -c 'GH_TOKEN_SET=yes$' "$RUNNER_TEMP/gh.log")" = "$(grep -c '^CALL|' "$RUNNER_TEMP/gh.log")"
+          git --git-dir="$remote" rev-parse auto-build/self-test-pr > "$RUNNER_TEMP/bot-sha"
+
+      - name: Run again with auto-merge, nothing changed
+        id: second
+        uses: ./
+        with:
+          mode: pr
+          working-directory: tests/fixture
+          paths: dist
+          auto-merge: "true"
+
+      - name: Check that the second run kept the one pull request
+        shell: bash
+        env:
+          PR_NUMBER: ${{ steps.second.outputs.pull-request-number }}
+        run: |
+          set -euo pipefail
+          remote="$RUNNER_TEMP/remote.git"
+          test "$PR_NUMBER" = "1"
+          # The same branch tip (no push), the same pull request (no second create).
+          test "$(git --git-dir="$remote" rev-parse auto-build/self-test-pr)" = "$(cat "$RUNNER_TEMP/bot-sha")"
+          test "$(grep -c '^CALL|pr create ' "$RUNNER_TEMP/gh.log")" = "1"
+          test "$(grep -c '^CALL|pr edit 1 ' "$RUNNER_TEMP/gh.log")" = "1"
+          grep -q '^CALL|pr merge 1 .*--auto --squash|' "$RUNNER_TEMP/gh.log"
+
+      - name: Run with the base branch as the bot branch
+        id: refused
+        uses: ./
+        continue-on-error: true
+        with:
+          mode: pr
+          working-directory: tests/fixture
+          paths: dist
+          branch: self-test-pr
+
+      - name: Check that the base branch was refused and not touched
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.refused.outcome }}
+        run: |
+          set -euo pipefail
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "Expected the base branch to be refused, the outcome was '$OUTCOME'." >&2
+            exit 1
+          fi
+          test "$(git --git-dir="$RUNNER_TEMP/remote.git" rev-parse self-test-pr)" = "$SEED_SHA"
+
+      - name: Run with a protected branch name
+        id: protected
+        uses: ./
+        continue-on-error: true
+        with:
+          mode: pr
+          working-directory: tests/fixture
+          paths: dist
+          branch: main
+
+      - name: Check that the protected name was refused
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.protected.outcome }}
+        run: |
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "Expected the protected name to be refused, the outcome was '$OUTCOME'." >&2
+            exit 1
+          fi
+          if git --git-dir="$RUNNER_TEMP/remote.git" rev-parse --verify --quiet refs/heads/main > /dev/null; then
+            echo "The remote has a main branch, the run wrote to it." >&2
+            exit 1
+          fi
+
+      - name: Detach HEAD, like a tag push
+        shell: bash
+        run: git checkout --quiet --detach
+
+      - name: Run on a detached HEAD
+        id: detached
+        uses: ./
+        continue-on-error: true
+        with:
+          mode: pr
           working-directory: tests/fixture
           paths: dist
 

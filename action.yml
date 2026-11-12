@@ -1,16 +1,17 @@
 name: "NPM Auto Build"
-description: "Builds your npm project and commits the build output to your repository, so nobody commits dist/ by hand. The modes commit (default), check and build are available in v3, pr follows."
+description: "Builds your npm project and commits the build output to your repository, so nobody commits dist/ by hand. The modes commit (default), check, pr and build are available in v3."
 
 author: "Miguel Colmenares <me@miguelcolmenares.com>"
 
-# v3 contract (issue #10). The modes commit, check and build work now. The mode pr is
-# implemented by issue #5 and fails at once with a clear error.
+# v3 contract (issue #10). The modes commit, check, pr and build all work.
 #
 # Mode commit needs, in the workflow: `actions/checkout` with `persist-credentials: false`
 # (so the build cannot read a token from .git/config) and `permissions: contents: write`.
+# Mode pr needs the same, plus `permissions: pull-requests: write` and the repository setting
+# "Allow GitHub Actions to create and approve pull requests" (or a PAT or App token as token).
 inputs:
   mode:
-    description: "What the action does: commit (default), check, pr or build. Commit builds and pushes the build output to the current branch. It needs a branch checkout (not a tag or a pull_request merge ref), actions/checkout with persist-credentials: false and permissions: contents: write. Check fails when the committed build output is stale and reads no token. Pr is implemented by issue #5 and is not available yet."
+    description: "What the action does: commit (default), check, pr or build. Commit builds and pushes the build output to the current branch. It needs a branch checkout (not a tag or a pull_request merge ref), actions/checkout with persist-credentials: false and permissions: contents: write. Check fails when the committed build output is stale and reads no token. Pr commits the build output to its own branch (the branch input), force-pushes only that bot-owned branch and keeps one pull request up to date against the checked out branch. It needs the same checkout, plus permissions: pull-requests: write and the setting Allow GitHub Actions to create and approve pull requests (or a personal access token or a GitHub App token as token)."
     required: false
     default: "commit"
   working-directory:
@@ -50,11 +51,11 @@ inputs:
     required: false
     default: "dist"
   token:
-    description: "GitHub token that pushes the build output (modes commit and pr, not read in build mode). Only the commit step reads it, install and build never see it. The default GITHUB_TOKEN does not start new workflow runs. To push to a protected branch use a personal access token or a GitHub App token that may bypass the protection."
+    description: "GitHub token that pushes the build output and, in mode pr, opens the pull request (modes commit and pr, not read in build and check mode). Only the commit or pr step reads it, install and build never see it. The default GITHUB_TOKEN does not start new workflow runs, and a pull request opened with it does not start the checks either, so required checks need a personal access token or a GitHub App token. To push to a protected branch use a personal access token or a GitHub App token that may bypass the protection."
     required: false
     default: ${{ github.token }}
   commit-message:
-    description: "Commit message for the build output (modes commit and pr). Keep [skip ci] in it: a push with a personal access token or a GitHub App token starts the workflow again, and without [skip ci] it can loop."
+    description: "Commit message for the build output (modes commit and pr). In mode commit keep [skip ci] in it: a push with a personal access token or a GitHub App token starts the workflow again, and without [skip ci] it can loop. In mode pr the default message is used without [skip ci], because GitHub skips the checks of a pull request whose head commit has it."
     required: false
     default: "chore: update build output [skip ci]"
   git-user-name:
@@ -66,19 +67,19 @@ inputs:
     required: false
     default: "github-actions[bot]@users.noreply.github.com"
   branch:
-    description: "Branch that holds the build output in pr mode. Empty means auto-build/<ref>."
+    description: "Branch that holds the build output in pr mode. Empty means auto-build/<checked out branch>. The action force-pushes this branch on every run, so it must be a branch that only the action writes to: it is refused when it is the base branch, the default branch of the remote, a reserved name (main, master, develop, release/* and similar), or a branch that already exists and was not made by this action."
     required: false
     default: ""
   pr-title:
-    description: "Pull request title (mode pr)."
+    description: "Pull request title (mode pr). It is set again on every run."
     required: false
-    default: ""
+    default: "chore: update build output"
   pr-labels:
-    description: "Pull request labels, comma separated (mode pr)."
+    description: "Pull request labels, comma separated (mode pr). The labels must exist in the repository. They are added on every run and never removed."
     required: false
     default: ""
   auto-merge:
-    description: "Enable auto-merge on the pull request (mode pr)."
+    description: "Enable auto-merge on the pull request with gh pr merge --auto (mode pr). The repository needs Allow auto-merge and a branch protection rule with required checks. The merge method is the first one the repository allows: squash, merge or rebase."
     required: false
     default: "false"
   ignore-scripts:
@@ -95,9 +96,9 @@ inputs:
     default: "npm-auto-build-stale-diff"
 
   # v2 names, accepted for a short time, each with a warning that names the new input. The
-  # value of github-token is read only by the commit step, where it wins over token.
+  # value of github-token is read only by the commit and pr steps, where it wins over token.
   github-token:
-    description: "Deprecated, use token. Accepted so a v2 workflow keeps working: a warning is printed and the value is used as the token of the commit step, where it wins over token."
+    description: "Deprecated, use token. Accepted so a v2 workflow keeps working: a warning is printed and the value is used as the token of the commit and pr steps, where it wins over token."
     required: false
     default: ""
   directory:
@@ -117,12 +118,11 @@ inputs:
     required: false
     default: ""
 
-# Declared now so later issues only add behavior. `changed` and `commit-sha` come from the
-# commit step, which is skipped in build mode, so they stay empty there. The other outputs
-# belong to the issues that implement their mode.
+# `changed` and `commit-sha` come from the commit step, `stale` from the check step and the
+# pull request outputs from the pr step. A step that is skipped leaves its outputs empty.
 outputs:
   changed:
-    description: "true when the action pushed a commit with new build output, false when nothing changed (mode commit). Empty in build and check mode."
+    description: "true when the action pushed a commit with new build output, false when nothing changed (mode commit). Empty in the other modes."
     value: ${{ steps.commit.outputs.changed }}
   stale:
     description: "true when the committed build output is out of date, false when it is fresh (mode check). Empty in the other modes."
@@ -131,11 +131,11 @@ outputs:
     description: "SHA of the pushed commit with the build output (mode commit). Empty when nothing changed and in build and check mode."
     value: ${{ steps.commit.outputs.commit-sha }}
   pull-request-url:
-    description: "URL of the pull request (mode pr). Empty in build and check mode."
-    value: ${{ steps.build.outputs.pull-request-url }}
+    description: "URL of the pull request (mode pr). Empty when nothing changed and in the other modes."
+    value: ${{ steps.pr.outputs.pull-request-url }}
   pull-request-number:
-    description: "Number of the pull request (mode pr). Empty in build and check mode."
-    value: ${{ steps.build.outputs.pull-request-number }}
+    description: "Number of the pull request (mode pr). Empty when nothing changed and in the other modes."
+    value: ${{ steps.pr.outputs.pull-request-number }}
 
 runs:
   using: "composite"
@@ -219,7 +219,7 @@ runs:
         if-no-files-found: ignore
         retention-days: 7
 
-    # The only step that gets the token. It runs after the build, so the project's code
+    # One of the two steps that get the token (the other is Pull request). It runs after the build, so the project's code
     # never runs with the token in its environment. The step `if:` reads the validate
     # output, because a composite step cannot test a value from GITHUB_ENV there.
     # Several jobs that push to the same branch need a `concurrency` group in the workflow.
@@ -235,6 +235,22 @@ runs:
         NAB_GIT_USER_NAME: ${{ inputs.git-user-name }}
         NAB_GIT_USER_EMAIL: ${{ inputs.git-user-email }}
       run: bash "$ACTION_PATH/scripts/commit.sh"
+
+    # Mode pr. The other step that gets the token, and the only one besides Commit. It runs
+    # after the build for the same reason. The script gives the token to git fetch, ls-remote
+    # and push through GIT_CONFIG_*, and to gh as GH_TOKEN for one command, never through
+    # this env: block. It needs permissions contents: write and pull-requests: write.
+    - name: Pull request
+      id: pr
+      if: steps.validate.outputs.mode == 'pr'
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        NAB_TOKEN: ${{ inputs.github-token != '' && inputs.github-token || inputs.token }}
+        NAB_COMMIT_MESSAGE: ${{ inputs.commit-message }}
+        NAB_GIT_USER_NAME: ${{ inputs.git-user-name }}
+        NAB_GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+      run: bash "$ACTION_PATH/scripts/pr.sh"
 
 branding:
   icon: "package"
