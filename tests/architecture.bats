@@ -17,10 +17,11 @@
 load helpers
 
 # The scripts that hold the token and may talk to the remote. Only these may run `git push`
-# or `git fetch`. pr.sh is added by issue 5, so a missing pr.sh is fine. To let a new
-# script hold the token, add its name here and say why in docs/architecture.md.
-TOKEN_SCRIPTS="commit.sh pr.sh"
-OPTIONAL_TOKEN_SCRIPTS="pr.sh"
+# or `git fetch`. git-lib.sh is the helper that builds the credential header and runs the
+# git commands with it, shared by commit.sh and pr.sh. To let a new script hold the token,
+# add its name here and say why in docs/architecture.md.
+TOKEN_SCRIPTS="commit.sh pr.sh git-lib.sh"
+OPTIONAL_TOKEN_SCRIPTS=""
 
 # The names of the variables that carry a token. NODE_AUTH_TOKEN is not here on purpose:
 # it is the registry token that the workflow author sets for the install.
@@ -31,6 +32,9 @@ TOKEN_RE="(^|[^A-Za-z0-9_])(${TOKEN_NAMES})([^A-Za-z0-9_]|\$)|secrets\\."
 COMMAND_START="(^|[|;&(\`]|\\\$\\(|[[:space:]](then|do|exec|sudo|xargs|command|env|run_without_token)[[:space:]])[[:space:]]*"
 NETWORK_TOOLS="curl|wget|nc|ncat|netcat|socat|ssh|scp|sftp|ftp|telnet|gh|npx"
 NETWORK_RE="${COMMAND_START}(${NETWORK_TOOLS})([[:space:]]|\$)|/dev/(tcp|udp)/"
+# The token scripts may run gh: pr.sh talks to the GitHub API with it, and that is its job.
+NETWORK_TOOLS_TOKEN_SCRIPTS="curl|wget|nc|ncat|netcat|socat|ssh|scp|sftp|ftp|telnet|npx"
+NETWORK_RE_TOKEN_SCRIPTS="${COMMAND_START}(${NETWORK_TOOLS_TOKEN_SCRIPTS})([[:space:]]|\$)|/dev/(tcp|udp)/"
 
 # git commands that talk to a remote, and the wrapper that gives them the token.
 GIT_REMOTE_RE="(^|[^A-Za-z0-9_-])git([[:space:]]+[^|;&]*)?[[:space:]]+(push|fetch|pull|clone|ls-remote)([[:space:]]|\$)|(^|[^A-Za-z0-9_])nab_git_remote([^A-Za-z0-9_]|\$)"
@@ -123,7 +127,7 @@ header_of() {
     done
 }
 
-@test "the allowlist names only scripts that exist, except pr.sh until issue 5 adds it" {
+@test "the allowlist names only scripts that exist" {
     local name
     for name in $TOKEN_SCRIPTS; do
         if in_list "$name" "$OPTIONAL_TOKEN_SCRIPTS"; then
@@ -164,7 +168,11 @@ header_of() {
 @test "no script calls a network tool, the package manager is the only way out" {
     local name
     for name in $(script_names); do
-        assert_no_hits "$SCRIPTS/$name" "$NETWORK_RE"
+        if in_list "$name" "$TOKEN_SCRIPTS"; then
+            assert_no_hits "$SCRIPTS/$name" "$NETWORK_RE_TOKEN_SCRIPTS"
+        else
+            assert_no_hits "$SCRIPTS/$name" "$NETWORK_RE"
+        fi
     done
 }
 
