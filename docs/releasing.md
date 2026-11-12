@@ -159,6 +159,17 @@ bash scripts/release-check.sh --tag 3.0.0   # run only where the tag exists loca
 
 The `TODO` lines are gone from `release-check.sh 3.0.0`, and `bats tests/` passes with the tag present. Merge as usual.
 
+### 8. Move the pins in the repositories that use the action
+
+Two repositories use the action with the commit of `main` as a pin, because `@v3` did not exist when they adopted it (issue #8). After the release, change each pin to `@v3` and delete the comment `# v3 pre-release (main), move to the v3 tag after the release`. Each change is a pull request in that repository.
+
+| Repository | Where the pin is |
+|---|---|
+| `miguelcolmenares/docs-sitekit` | `.github/workflows/ci.yml`, the job `Generated docs are current` (one place). |
+| `miguelcolmenares/social-card-action` | `README.md` (two places) and `.github/workflows/social-card.yml` (one place). The README text that says there is no v3 release yet goes too. |
+
+Find them with `grep -rn "npm-auto-build@bc350ea" .github README.md` in each repository.
+
 ## The release workflow
 
 `.github/workflows/release.yml` starts only on a push of a tag that matches `v3.*.*`. A later major version (`v4`) needs its own pattern, because the workflow moves the floating tag `v3`. A pull request, a push to a branch or a manual run does not start it.
