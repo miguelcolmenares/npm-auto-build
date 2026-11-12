@@ -78,17 +78,8 @@ if: github.event_name == 'push'          # mode: commit for main
 - The Marketplace requires a public repository, a single `action.yml` or `action.yaml` at the root and a unique `name` ([requirements](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/publish-in-github-marketplace)). Workflow files under `.github/workflows/` are allowed, and the repository has them for CI.
 - All examples should use the action via the marketplace reference, not local paths
 
-**Major Version Tag Management:**
-After each release, update the major version tag to point to the latest version:
-```bash
-# For v1.x.x releases - update v1 tag
-git tag -f v1 v1.2.0
-git push -f origin v1
-
-# For v2.x.x releases - create/update v2 tag  
-git tag -f v2 v2.0.0
-git push -f origin v2
-```
+**Releases and the major version tag:**
+`docs/releasing.md` is the procedure. In short: a release pull request (CHANGELOG, version), `scripts/release-check.sh <version>` on `main`, an annotated tag `git tag -a vX.Y.Z -m vX.Y.Z` pushed by name, and `.github/workflows/release.yml`, which makes a draft release and moves the floating tag (`v3`). Never push a tag, publish a release or publish to the Marketplace without the maintainer's go (issue #9). `v2` and `v2.1.2` are never moved. Never move an exact version tag, and use `--force-with-lease` only for the floating tag.
 
 **GitHub CLI Usage:**
 Always disable pager when using `gh` to prevent terminal hanging:
