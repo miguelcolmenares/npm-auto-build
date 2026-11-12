@@ -22,9 +22,9 @@ setup() {
     export INPUT_MODE=commit
     export INPUT_BUILD_ONLY=false
     run bash "$SCRIPTS/validate-inputs.sh"
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 0 ]
     [[ "$output" == *"::warning::Input 'build-only' is a v2 name"* ]] || false
-    [[ "$output" == *"issue #3"* ]] || false
+    [ "$(env_value NAB_MODE)" = "commit" ]
 }
 
 @test "build-only with an invalid value is rejected" {
@@ -87,6 +87,7 @@ setup() {
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 0 ]
     [[ "$output" == *"::warning::Input 'github-token' is a v2 name. Use 'token' instead."* ]] || false
+    [[ "$output" == *"it is the token of the commit step and wins over 'token'"* ]] || false
 }
 
 @test "create-pr true maps to mode pr, which is not available yet" {

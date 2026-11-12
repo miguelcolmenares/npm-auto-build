@@ -15,7 +15,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 # Mode gate: which issue implements each mode that is not available yet.
 mode_issue() {
     case "$1" in
-        commit) printf '3' ;;
         pr) printf '5' ;;
         *) printf '' ;;
     esac
@@ -147,17 +146,17 @@ main() {
         fi
     fi
     if [ "${INPUT_GITHUB_TOKEN_SET:-false}" = "true" ]; then
-        log_warn "Input 'github-token' is a v2 name. Use 'token' instead."
+        log_warn "Input 'github-token' is a v2 name. Use 'token' instead. Its value still works: it is the token of the commit step and wins over 'token'."
     fi
 
-    # Mode gate. Build and check work on this branch of the rewrite.
+    # Mode gate. Build, check and commit work on this branch of the rewrite.
     case "$mode" in
-        build | check) ;;
-        commit | pr)
-            die "mode '$mode' is implemented by issue #$(mode_issue "$mode") and is not available yet. Use 'mode: build' or 'mode: check' for now, or pin the action to the v2 tag."
+        build | check | commit) ;;
+        pr)
+            die "mode '$mode' is implemented by issue #$(mode_issue "$mode") and is not available yet. Use 'mode: commit', 'mode: check' or 'mode: build' for now, or pin the action to the v2 tag."
             ;;
         *)
-            die "Unknown mode '$mode'. Use one of: commit, check, pr, build (commit and pr are not available yet)."
+            die "Unknown mode '$mode'. Use one of: commit, check, pr, build (pr is not available yet)."
             ;;
     esac
 
@@ -216,6 +215,7 @@ main() {
     nab_write_env NAB_PATHS "$paths"
     nab_write_env NAB_IGNORE_SCRIPTS "$ignore_scripts"
     nab_write_output node-version "$node_version"
+    # The commit step reads this output in its `if:`, a composite step cannot use GITHUB_ENV there.
     nab_write_output mode "$mode"
 
     log_info "mode: $mode"

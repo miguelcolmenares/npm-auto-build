@@ -22,14 +22,18 @@ setup() {
     [ "$(output_value node-version)" = "24" ]
 }
 
-@test "mode commit fails at once and names issue 3" {
+@test "mode commit is accepted and written as an output for the commit step" {
     export INPUT_MODE=commit
     run bash "$SCRIPTS/validate-inputs.sh"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::"* ]] || false
-    [[ "$output" == *"issue #3"* ]] || false
-    [[ "$output" == *"not available yet"* ]] || false
-    [ ! -s "$GITHUB_ENV" ]
+    [ "$status" -eq 0 ]
+    [ "$(env_value NAB_MODE)" = "commit" ]
+    [ "$(output_value mode)" = "commit" ]
+}
+
+@test "mode build is written as an output too" {
+    run bash "$SCRIPTS/validate-inputs.sh"
+    [ "$status" -eq 0 ]
+    [ "$(output_value mode)" = "build" ]
 }
 
 @test "mode check is accepted and the mode output is written" {
@@ -48,11 +52,11 @@ setup() {
     [[ "$output" == *"issue #5"* ]] || false
 }
 
-@test "the default mode, commit, is not available yet" {
+@test "the default mode is commit" {
     unset INPUT_MODE
     run bash "$SCRIPTS/validate-inputs.sh"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"issue #3"* ]] || false
+    [ "$status" -eq 0 ]
+    [ "$(env_value NAB_MODE)" = "commit" ]
 }
 
 @test "an unknown mode is rejected" {

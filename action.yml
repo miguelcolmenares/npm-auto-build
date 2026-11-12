@@ -1,13 +1,16 @@
 name: "NPM Auto Build"
-description: "Builds your npm project and commits the build output to your repository. Build and check are available in v3, commit and pr follow."
+description: "Builds your npm project and commits the build output to your repository, so nobody commits dist/ by hand. The modes commit (default), check and build are available in v3, pr follows."
 
 author: "Miguel Colmenares <me@miguelcolmenares.com>"
 
-# v3 contract (issue #10). The modes build and check work for now. The modes commit
-# and pr are implemented by issues #3 and #5 and fail at once with a clear error.
+# v3 contract (issue #10). The modes commit, check and build work now. The mode pr is
+# implemented by issue #5 and fails at once with a clear error.
+#
+# Mode commit needs, in the workflow: `actions/checkout` with `persist-credentials: false`
+# (so the build cannot read a token from .git/config) and `permissions: contents: write`.
 inputs:
   mode:
-    description: "What the action does: commit (default), check, pr or build. Build and check are available, commit and pr are implemented by issues #3 and #5."
+    description: "What the action does: commit (default), check, pr or build. Commit builds and pushes the build output to the current branch. It needs a branch checkout (not a tag or a pull_request merge ref), actions/checkout with persist-credentials: false and permissions: contents: write. Check fails when the committed build output is stale and reads no token. Pr is implemented by issue #5 and is not available yet."
     required: false
     default: "commit"
   working-directory:
@@ -39,11 +42,11 @@ inputs:
     required: false
     default: "dist"
   token:
-    description: "GitHub token (modes commit and pr, not read in build and check mode). Only the commit step reads it, install and build never see it."
+    description: "GitHub token that pushes the build output (modes commit and pr, not read in build mode). Only the commit step reads it, install and build never see it. The default GITHUB_TOKEN does not start new workflow runs. To push to a protected branch use a personal access token or a GitHub App token that may bypass the protection."
     required: false
     default: ${{ github.token }}
   commit-message:
-    description: "Commit message for the build output (modes commit and pr)."
+    description: "Commit message for the build output (modes commit and pr). Keep [skip ci] in it: a push with a personal access token or a GitHub App token starts the workflow again, and without [skip ci] it can loop."
     required: false
     default: "chore: update build output [skip ci]"
   git-user-name:
@@ -84,9 +87,9 @@ inputs:
     default: "npm-auto-build-stale-diff"
 
   # v2 names, accepted for a short time, each with a warning that names the new input. The
-  # value of github-token is NOT read yet, the commit step of issue #3 decides what to do with it.
+  # value of github-token is read only by the commit step, where it wins over token.
   github-token:
-    description: "Deprecated, use token. Accepted so a v2 workflow does not fail, but only a warning is printed and the value is not read yet."
+    description: "Deprecated, use token. Accepted so a v2 workflow keeps working: a warning is printed and the value is used as the token of the commit step, where it wins over token."
     required: false
     default: ""
   directory:
@@ -106,18 +109,19 @@ inputs:
     required: false
     default: ""
 
-# Declared now so later issues only add behavior. Build mode builds and commits
-# nothing, so it has nothing honest to report and leaves them empty.
+# Declared now so later issues only add behavior. `changed` and `commit-sha` come from the
+# commit step, which is skipped in build mode, so they stay empty there. The other outputs
+# belong to the issues that implement their mode.
 outputs:
   changed:
-    description: "true when the build output differs from the repository. Empty in build and check mode."
-    value: ${{ steps.build.outputs.changed }}
+    description: "true when the action pushed a commit with new build output, false when nothing changed (mode commit). Empty in build and check mode."
+    value: ${{ steps.commit.outputs.changed }}
   stale:
     description: "true when the committed build output is out of date, false when it is fresh (mode check). Empty in the other modes."
     value: ${{ steps.check.outputs.stale }}
   commit-sha:
-    description: "SHA of the commit with the build output. Empty in build and check mode."
-    value: ${{ steps.build.outputs.commit-sha }}
+    description: "SHA of the pushed commit with the build output (mode commit). Empty when nothing changed and in build and check mode."
+    value: ${{ steps.commit.outputs.commit-sha }}
   pull-request-url:
     description: "URL of the pull request (mode pr). Empty in build and check mode."
     value: ${{ steps.build.outputs.pull-request-url }}
@@ -200,6 +204,23 @@ runs:
         path: ${{ runner.temp }}/nab-check
         if-no-files-found: ignore
         retention-days: 7
+
+    # The only step that gets the token. It runs after the build, so the project's code
+    # never runs with the token in its environment. The step `if:` reads the validate
+    # output, because a composite step cannot test a value from GITHUB_ENV there.
+    # Several jobs that push to the same branch need a `concurrency` group in the workflow.
+    - name: Commit
+      id: commit
+      if: steps.validate.outputs.mode == 'commit'
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        # The v2 name github-token wins over token, like a v2 workflow expects.
+        NAB_TOKEN: ${{ inputs.github-token != '' && inputs.github-token || inputs.token }}
+        NAB_COMMIT_MESSAGE: ${{ inputs.commit-message }}
+        NAB_GIT_USER_NAME: ${{ inputs.git-user-name }}
+        NAB_GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+      run: bash "$ACTION_PATH/scripts/commit.sh"
 
 branding:
   icon: "package"
