@@ -1,52 +1,181 @@
 name: "NPM Auto Build"
-description: "🚀 Automatically build and commit your npm project's build files to your repository"
+description: "Builds your npm project and commits the build output to your repository. Build is the first mode available in v3, commit, check and pr follow."
 
 author: "Miguel Colmenares <me@miguelcolmenares.com>"
 
+# v3 contract (issue #10). Only `mode: build` works for now. The modes commit, check
+# and pr are implemented by issues #3, #4 and #5 and fail at once with a clear error.
 inputs:
-  command:
-    description: "NPM script to build your package. Default to build"
+  mode:
+    description: "What the action does: commit (default), check, pr or build. Only build is available yet, commit, check and pr are implemented by issues #3, #4 and #5."
     required: false
-    default: "build"
-  directory:
-    description: "Directory that contains the package.json file that you want to build"
+    default: "commit"
+  working-directory:
+    description: "Directory that contains the package.json file. Relative to the workspace."
     required: false
     default: "."
-  commit-message:
-    description: "Commit message for the build changes"
+  command:
+    description: "Name of the package.json script that builds the project."
     required: false
-    default: "chore: update build files"
-  build-dir:
-    description: "Directory where build files are generated (relative to project root)"
+    default: "build"
+  install-command:
+    description: "Command that installs the dependencies. Empty means detect it from the lockfile."
+    required: false
+    default: ""
+  package-manager:
+    description: "Package manager: auto, npm, yarn or pnpm. Auto detects it from the lockfile."
+    required: false
+    default: "auto"
+  node-version:
+    description: "Node.js version to install, for example 24 or 22.x. Ignored when node-version-file is set."
+    required: false
+    default: "24"
+  node-version-file:
+    description: "File with the Node.js version, for example .nvmrc or package.json. Relative to the workspace. When set, it wins over node-version."
+    required: false
+    default: ""
+  paths:
+    description: "Build output paths, one per line, relative to working-directory. Every path must exist after the build."
     required: false
     default: "dist"
-  github-token:
-    description: "GitHub token for committing changes"
-    required: true
+  token:
+    description: "GitHub token. Only the commit step reads it, install and build never see it."
+    required: false
+    default: ${{ github.token }}
+  commit-message:
+    description: "Commit message for the build output (modes commit and pr)."
+    required: false
+    default: "chore: update build output [skip ci]"
   git-user-name:
-    description: "Git user name for commits"
+    description: "Git user name for commits."
     required: false
     default: "github-actions[bot]"
   git-user-email:
-    description: "Git user email for commits"
+    description: "Git user email for commits."
     required: false
     default: "github-actions[bot]@users.noreply.github.com"
-  node-version:
-    description: "Node.js version to use for building"
+  branch:
+    description: "Branch that holds the build output in pr mode. Empty means auto-build/<ref>."
     required: false
-    default: "18"
+    default: ""
+  pr-title:
+    description: "Pull request title (mode pr)."
+    required: false
+    default: ""
+  pr-labels:
+    description: "Pull request labels, comma separated (mode pr)."
+    required: false
+    default: ""
+  auto-merge:
+    description: "Enable auto-merge on the pull request (mode pr)."
+    required: false
+    default: "false"
+  ignore-scripts:
+    description: "Install dependencies with --ignore-scripts, so no lifecycle script runs."
+    required: false
+    default: "false"
+  upload-diff:
+    description: "Upload the diff of a stale build as an artifact (mode check)."
+    required: false
+    default: "true"
+
+  # v2 names, accepted for a short time. Each one is mapped to its v3 input with a warning.
+  github-token:
+    description: "Deprecated, use token. Accepted as an alias."
+    required: false
+    default: ""
+  directory:
+    description: "Deprecated, use working-directory. Accepted as an alias."
+    required: false
+    default: ""
+  build-dir:
+    description: "Deprecated, use paths. Accepted as an alias."
+    required: false
+    default: ""
   build-only:
-    description: "Only build without committing changes (useful for testing)"
+    description: "Deprecated, use mode: build. Accepted as an alias."
     required: false
-    default: "false"
+    default: ""
   create-pr:
-    description: "Create a pull request instead of direct push (for protected branches)"
+    description: "Deprecated, use mode: pr. Accepted as an alias."
     required: false
-    default: "false"
+    default: ""
+
+# Declared now so later issues only add behavior. Build mode builds and commits
+# nothing, so it has nothing honest to report and leaves them empty.
+outputs:
+  changed:
+    description: "true when the build output differs from the repository. Empty in build mode."
+    value: ${{ steps.build.outputs.changed }}
+  stale:
+    description: "true when the committed build output is out of date (mode check). Empty in build mode."
+    value: ${{ steps.build.outputs.stale }}
+  commit-sha:
+    description: "SHA of the commit with the build output. Empty in build mode."
+    value: ${{ steps.build.outputs.commit-sha }}
+  pull-request-url:
+    description: "URL of the pull request (mode pr). Empty in build mode."
+    value: ${{ steps.build.outputs.pull-request-url }}
+  pull-request-number:
+    description: "Number of the pull request (mode pr). Empty in build mode."
+    value: ${{ steps.build.outputs.pull-request-number }}
 
 runs:
-  using: "docker"
-  image: "Dockerfile"
+  using: "composite"
+  # Every input reaches a script through the env: of its own step. No step reads the
+  # token, so the install and build steps cannot see it. There is no job level env.
+  steps:
+    - name: Validate inputs
+      id: validate
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        INPUT_MODE: ${{ inputs.mode }}
+        INPUT_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        INPUT_COMMAND: ${{ inputs.command }}
+        INPUT_INSTALL_COMMAND: ${{ inputs.install-command }}
+        INPUT_PACKAGE_MANAGER: ${{ inputs.package-manager }}
+        INPUT_NODE_VERSION: ${{ inputs.node-version }}
+        INPUT_NODE_VERSION_FILE: ${{ inputs.node-version-file }}
+        INPUT_PATHS: ${{ inputs.paths }}
+        INPUT_COMMIT_MESSAGE: ${{ inputs.commit-message }}
+        INPUT_GIT_USER_NAME: ${{ inputs.git-user-name }}
+        INPUT_GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+        INPUT_BRANCH: ${{ inputs.branch }}
+        INPUT_PR_TITLE: ${{ inputs.pr-title }}
+        INPUT_PR_LABELS: ${{ inputs.pr-labels }}
+        INPUT_AUTO_MERGE: ${{ inputs.auto-merge }}
+        INPUT_IGNORE_SCRIPTS: ${{ inputs.ignore-scripts }}
+        INPUT_UPLOAD_DIFF: ${{ inputs.upload-diff }}
+        INPUT_DIRECTORY: ${{ inputs.directory }}
+        INPUT_BUILD_DIR: ${{ inputs.build-dir }}
+        INPUT_BUILD_ONLY: ${{ inputs.build-only }}
+        INPUT_CREATE_PR: ${{ inputs.create-pr }}
+        # Only a flag, never the value of the token.
+        INPUT_GITHUB_TOKEN_SET: ${{ inputs.github-token != '' && 'true' || 'false' }}
+      run: bash "$ACTION_PATH/scripts/validate-inputs.sh"
+
+    - name: Set up Node.js
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: ${{ steps.validate.outputs.node-version }}
+        node-version-file: ${{ inputs.node-version-file }}
+        # Caching stays off, it keeps the action simple.
+        package-manager-cache: false
+
+    - name: Install dependencies
+      id: install
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: bash "$ACTION_PATH/scripts/install.sh"
+
+    - name: Build
+      id: build
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: bash "$ACTION_PATH/scripts/build.sh"
 
 branding:
   icon: "package"
