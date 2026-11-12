@@ -1,54 +1,53 @@
-# Complete example showing build + commit and build-only modes
-name: Complete Build Workflow
+# One workflow for pull requests and for the main branch.
+#
+# On a pull request the action only checks that the committed build output is fresh
+# (mode check). It reads no token, so it also works for pull requests from forks.
+# On a push to main it builds and commits the changed build output (mode commit).
+#
+# Copy the file to .github/workflows/ and change the build script and the paths.
+name: Build
 
 on:
-  # Build and commit on main branch
   push:
-    branches: [ main ]
-  
-  # Only test build on PRs
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+
+# The least privilege for the jobs that only read. The commit job asks for more.
+permissions:
+  contents: read
+
+# One run per branch at a time, so two pushes never race to commit the build.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  # Test build on Pull Requests (no commit)
-  test-build:
+  check:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    
-    # No special permissions needed for testing
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v5
-
-      - name: Test Build (No Commit)
-        uses: miguelcolmenares/npm-auto-build@v2
+      - uses: actions/checkout@v7
         with:
-          build-only: true  # Only test the build
-          command: 'build:prod'
-          build-dir: 'dist'
+          persist-credentials: false
+      - uses: miguelcolmenares/npm-auto-build@v3
+        with:
+          mode: check
+          command: build:prod
+          paths: dist
 
-  # Build and commit on main branch
-  build-and-commit:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  commit:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    
-    # Required permissions for committing
     permissions:
-      contents: write
-    
+      contents: write # the push of the build commit
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and Commit
-        uses: miguelcolmenares/npm-auto-build@v2
+          persist-credentials: false # the build cannot read a token from .git/config
+      - uses: miguelcolmenares/npm-auto-build@v3
         with:
-          command: 'build:prod'
-          build-dir: 'dist'
-          commit-message: '🚀 Update production build'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          git-user-name: 'Build Bot'
-          git-user-email: 'build-bot@company.com'
+          command: build:prod
+          paths: dist
+          git-user-name: Build Bot
+          git-user-email: build-bot@example.com

@@ -1,0 +1,41 @@
+# A branch that does not accept direct pushes: mode pr.
+#
+# The action commits the build output to its own branch (auto-build/main by default) and
+# keeps one pull request up to date, so main is never written to. A person merges it.
+#
+# With the default GITHUB_TOKEN, turn on "Allow GitHub Actions to create and approve pull
+# requests" in the repository settings (Settings, Actions, General). A pull request made
+# with that token starts no other workflows. When you require checks on main, pass a
+# personal access token or a GitHub App token as `token` (see protected-branch-token.yml).
+# The bot branch is rewritten on every run, so exclude it from branch protection.
+name: Build pull request
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write # the push of the bot branch
+  pull-requests: write # open and update the pull request
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: miguelcolmenares/npm-auto-build@v3
+        id: build
+        with:
+          mode: pr
+          pr-title: "chore: update build output"
+      - name: Show the pull request
+        if: steps.build.outputs.pull-request-url != ''
+        env:
+          PR_URL: ${{ steps.build.outputs.pull-request-url }}
+        run: echo "Build pull request $PR_URL"

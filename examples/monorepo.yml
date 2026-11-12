@@ -1,44 +1,51 @@
-# Example for monorepo with multiple packages
-name: Monorepo Build
+# A monorepo with one job per package.
+#
+# Every job has its own working-directory and its own paths (relative to the working
+# directory), and makes its own commit when its build output changed.
+#
+# The concurrency group is on the workflow, not on the job. A job level group is shared
+# by all the matrix jobs, and GitHub keeps only one running and one pending job in a group,
+# so it would cancel the others. max-parallel: 1 makes the jobs push one after the other.
+name: Build packages
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  build-packages:
+  build:
     runs-on: ubuntu-latest
-    
-    permissions:
-      contents: write
-    
     strategy:
+      fail-fast: false
+      max-parallel: 1
       matrix:
         package:
-          - name: 'web-app'
-            directory: './apps/web'
-            build-command: 'build'
-            build-dir: 'dist'
-          - name: 'admin-panel'
-            directory: './apps/admin'
-            build-command: 'build:prod'
-            build-dir: 'build'
-          - name: 'shared-ui'
-            directory: './packages/ui'
-            build-command: 'build:lib'
-            build-dir: 'lib'
-
+          - name: web-app
+            directory: apps/web
+            command: build
+            paths: dist
+          - name: admin-panel
+            directory: apps/admin
+            command: build:prod
+            paths: build
+          - name: shared-ui
+            directory: packages/ui
+            command: build:lib
+            paths: lib
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build ${{ matrix.package.name }}
-        uses: miguelcolmenares/npm-auto-build@v2
+          persist-credentials: false
+      - uses: miguelcolmenares/npm-auto-build@v3
         with:
-          directory: ${{ matrix.package.directory }}
-          command: ${{ matrix.package.build-command }}
-          build-dir: ${{ matrix.package.build-dir }}
-          commit-message: 'chore(${{ matrix.package.name }}): update build files'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          working-directory: ${{ matrix.package.directory }}
+          command: ${{ matrix.package.command }}
+          paths: ${{ matrix.package.paths }}
+          commit-message: "chore(${{ matrix.package.name }}): update build output [skip ci]"

@@ -57,7 +57,7 @@ jobs:
 
   # Bats is installed from the Ubuntu archive. That keeps one more third-party action
   # out of the supply chain, and the distribution pins the version. The tests only
-  # need bats and the Node.js that setup-node provides.
+  # need bats, PyYAML (python3-yaml, for tests/docs-examples.bats) and the Node.js that setup-node provides.
   bats:
     name: bats
     runs-on: ubuntu-latest
@@ -76,7 +76,7 @@ jobs:
       - name: Install bats
         run: |
           sudo apt-get update
-          sudo apt-get install -y bats
+          sudo apt-get install -y bats python3-yaml
 
       - name: Show versions
         run: |
@@ -517,3 +517,30 @@ jobs:
           test -f "tests/fixtures/$FIXTURE/dist/out.txt"
           cat "tests/fixtures/$FIXTURE/dist/out.txt"
           grep -q "built by the $FIXTURE fixture" "tests/fixtures/$FIXTURE/dist/out.txt"
+
+  # The YAML examples of the README, the examples directory and the docs, checked against
+  # action.yml. This is a structural check: each snippet must parse, use this action at @v3,
+  # @main or a commit SHA, pass only inputs that exist with valid values, and have the
+  # permissions and the checkout that its mode needs. It does not run the examples. The
+  # self-test jobs above run the action itself, against the fixture projects.
+  docs-examples:
+    name: docs-examples
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # PyYAML comes from the Ubuntu archive, like bats in the bats job. No pip command, so
+      # there is nothing to pin by hash.
+      - name: Install PyYAML
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-yaml
+
+      - name: Check the README, its tables and its modes
+        run: python3 tests/docs-examples.py --tables README.md --require-modes README.md
+
+      - name: Check the examples and the other docs
+        run: python3 tests/docs-examples.py examples/*.yml docs/recipes.md docs/migration-v2-to-v3.md docs/README.md .github/ACTION_DESCRIPTION.md

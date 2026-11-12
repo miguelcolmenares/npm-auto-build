@@ -43,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/threat-model.md`: the assets, actors, trust boundaries and threats of the action, and the known v2 findings with the v3 fix for each.
 - `SECURITY.md`: how to report a vulnerability, which versions are supported, and the response times.
 - `docs/architecture.md` and `tests/architecture.bats` (issue #11): the two trust zones, what each script may do, and tests that fail when a script outside the allowlist reads a token variable, runs `git push` or `git fetch`, calls a network tool, or when a `run:` block holds a `${{ }}` expression. `tests/failure-paths.bats` adds tests for long values in every input, a leading dash, a fork pull request, a failed build and two runs at the same time. The last one found that a push that loses a ref lock race (`cannot lock ref`) was not retried, so `commit.sh` now treats it like a rejected push.
+- `docs/migration-v2-to-v3.md`: the renamed inputs with what each warning says, the breaking changes, and how to stay on `@v2`.
+- `docs/recipes.md`: protected branches, tag and `pull_request` events, matrix and monorepo, a private registry, pnpm and yarn, and a Bitbucket Pipelines step for `scripts/check.sh`.
+- `examples/` rewritten for v3: `complete-workflow.yml`, `monorepo.yml`, `protected-branch-pr.yml` and `protected-branch-token.yml`. They replace `protected-branches.yml` and the v2 examples.
+- **The examples cannot rot unnoticed.** `tests/docs-examples.py` reads the YAML snippets of the README, the examples, the recipes and the other docs, and checks each one against `action.yml`: the `@v3`, `@main` or SHA reference, only inputs that exist (and no v2 names), a valid `mode`, the checkout with `persist-credentials: false` and the permissions that the mode needs. It runs in `tests/docs-examples.bats`, with a test that adds a wrong input to a copy of the README and expects a failure, and in the CI job `docs-examples`. It does not run the action. A test also fails once a `v3` tag exists while the docs still say that `@v3` is not released.
 
 ### Changed
 - The `workflows` job of CI parses the YAML files with Ruby, which comes with the runner, and no longer installs PyYAML with `pip`. That closes the Scorecard alert Pinned-Dependencies (`pipCommand not pinned by hash`), and `actions/setup-python` is gone from the workflow.
@@ -57,7 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - pnpm and yarn without a lockfile install without the frozen flags and print a warning, like npm does, instead of failing on the missing lockfile.
 - `npm test` runs shellcheck and, when bats is installed, `bats tests/`. Dependabot no longer watches Docker.
 - The CI and housekeeping from #13 and the push fix of the Docker action are in no release: the Docker code they changed is removed here.
-- README: a note at the top says that v3 is in development and `@v2` is the stable version. The rest is rewritten by issue #7.
+- **README rewritten for v3 (issue #7).** The premise first, the four modes with one example each, the inputs and outputs tables (checked against `action.yml` by `tests/docs-examples.py`), the permissions and `persist-credentials: false` that modes `commit` and `pr` need, and the token model. The badges for CI, CodeQL and the OpenSSF Scorecard were added, and the license badge is labeled "License". The release badge shows the latest tag, so it shows v2 until v3 is released. The README says that `@v3` is available after the v3 release, and that until then the commit SHA or `@main` works.
+- Stale v2 text removed from the README, `docs/README.md`, `.github/ACTION_DESCRIPTION.md` and `.github/copilot-instructions.md`: the old Node.js version and checkout version in examples, the `@v2` references, the claim of fewer merge conflicts, the auto detected build directory, and the description of how the action runs.
 
 ### Removed
 - `Dockerfile` and `entrypoint.sh`, and the Docker only scripts `test.sh`, `test-build-only.sh`, `scripts/test-local.sh`, `scripts/test-debug.sh` and `scripts/Dockerfile.debug`. They stay available through the `v2` tag.
@@ -178,13 +183,4 @@ This fixes a critical issue where build files weren't committed if the build dir
 
 ## Usage
 
-```yaml
-- name: Build and Deploy
-  uses: miguelcolmenares/npm-auto-build@v2
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    build-dir: dist
-    commit-message: "chore: update build files [skip ci]"
-```
-
-For complete usage examples, see the [examples/](examples/) directory.
+See the [README](README.md) for the current usage of the action, and the [examples](examples/README.md) for complete workflows. The usage of v2 is in the `v2` tag.
