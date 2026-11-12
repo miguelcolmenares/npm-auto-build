@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-`main` is now the v3 composite action in progress (issue #10). Only `mode: build` works so far. The modes `commit`, `check` and `pr` come with issues #3, #4 and #5, so `main` offers less than v2 until they land. Nothing is released from `main` yet. v2 stays available through the `v2` tag: use `miguelcolmenares/npm-auto-build@v2` for the Docker action.
+`main` is now the v3 composite action in progress (issue #10). `mode: build` builds and commits nothing. `mode: check` builds and fails when the committed build output is stale. The mode `pr` comes with issue #5, and the mode `commit` with issue #3. `main` offers less than v2 until they land. Nothing is released from `main` yet. v2 stays available through the `v2` tag: use `miguelcolmenares/npm-auto-build@v2` for the Docker action.
 
 ### Added
 - **Composite action** (`runs: using: composite`), so it runs on Linux, macOS and Windows runners, on the host and not in an Alpine container.
-- **The full v3 contract is declared:** the inputs `mode`, `working-directory`, `command`, `install-command`, `package-manager`, `node-version`, `node-version-file`, `paths`, `token`, `commit-message`, `git-user-name`, `git-user-email`, `branch`, `pr-title`, `pr-labels`, `auto-merge`, `ignore-scripts` and `upload-diff`, and the outputs `changed`, `stale`, `commit-sha`, `pull-request-url` and `pull-request-number`. In `build` mode the outputs are empty. A mode other than `build` fails at once and names the issue that implements it.
+- **The full v3 contract is declared:** the inputs `mode`, `working-directory`, `command`, `install-command`, `package-manager`, `node-version`, `node-version-file`, `paths`, `token`, `commit-message`, `git-user-name`, `git-user-email`, `branch`, `pr-title`, `pr-labels`, `auto-merge`, `ignore-scripts` and `upload-diff`, and the outputs `changed`, `stale`, `commit-sha`, `pull-request-url` and `pull-request-number`. In `build` and `check` mode the outputs that belong to other modes are empty. The modes `commit` and `pr` fail at once and name the issue that implements them.
 - **A real `node-version`**, default `24`, installed with `actions/setup-node` (pinned by commit SHA). `node-version-file` is supported and wins over `node-version`.
 - **The install and build steps run without the token.** The token is not passed to them, and the scripts remove the known token variables (`GITHUB_TOKEN`, `GH_TOKEN`, `INPUT_TOKEN`, `INPUT_GITHUB_TOKEN`, `ACTIONS_RUNTIME_TOKEN` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN`) from their environment even when the workflow exports one. A test prints the environment of an install script and a build script and finds no token.
 - **Input validation.** Inputs reach the scripts only through environment variables. A `paths` entry that is empty, starts with `-`, contains `..` or is absolute is rejected, and so is a `working-directory` that leaves the workspace. Values with a line break, or longer than 1024 characters, are rejected. Spaces, quotes and `$()` are kept as text and never run.
@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ignore-scripts` input: installs with `--ignore-scripts`.
 - **bats tests** (`tests/`) with a fixture project, and CI jobs `bats` and `self-test`. The self-test runs the action against the fixture on Ubuntu, macOS and Windows.
 - `.gitattributes` keeps LF line endings in shell scripts, so a Windows checkout does not break them.
+- **`mode: check`** (issue #4): runs the build, then compares the `paths` with `HEAD` and fails the job when they differ. A modified file, a deleted file, a new file and a file that `.gitignore` ignores are all stale. A line ending difference alone (carriage returns, `git diff --ignore-cr-at-eol`, git 2.16 or newer) is not. The `::error::` names the working directory and up to 50 files (then "and N more"), and says to run `<package manager> run <command>` and commit the changed paths. A path that resolves outside the repository is refused. It only reads, never reads a token, so it works on `pull_request` events from forks.
+- **Output `stale`** is `true` or `false` in mode `check`, and the step exits 1 when it is `true`. With `upload-diff: true` the action uploads `diff.patch` and `files.txt` as the artifact `npm-auto-build-stale-diff` (7 days), when the check found stale output. `actions/upload-artifact` is pinned by commit SHA.
+- **`scripts/check.sh` works without GitHub**: it needs only bash, git and the `NAB_PATHS` variable, and prints `stale=true` or `stale=false` when `GITHUB_OUTPUT` is not set, so Bitbucket Pipelines can use it with one line. See `docs/testing.md`.
+- The validate step has a `mode` output, and the CI job `self-test-check` runs the action on the fixture, once fresh and once stale.
 
 ### Changed
 - The default Node.js version is 24 and `node-version` has an effect now.

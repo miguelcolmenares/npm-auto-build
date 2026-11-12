@@ -137,3 +137,79 @@ jobs:
             echo "Expected mode commit to fail, the outcome was '$OUTCOME'." >&2
             exit 1
           fi
+
+  # Mode check against the fixture, twice. First the build output is committed and fresh,
+  # so the action must pass. Then the build changes and the output is not committed, so
+  # the action must fail, report stale=true and upload the diff. The commit is local to
+  # this job and is never pushed (the checkout keeps no credentials).
+  self-test-check:
+    name: self-test-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Commit a fresh build of the fixture
+        run: |
+          cd tests/fixture
+          node build.js
+          git add -f dist
+          git -c user.name=ci -c user.email=ci@example.com commit -q -m "fixture build output"
+
+      - name: Check a fresh build
+        id: fresh
+        uses: ./
+        with:
+          mode: check
+          working-directory: tests/fixture
+          paths: dist
+
+      - name: Assert that the fresh build passed
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.fresh.outcome }}
+          STALE: ${{ steps.fresh.outputs.stale }}
+        run: |
+          if [ "$OUTCOME" != "success" ] || [ "$STALE" != "false" ]; then
+            echo "Expected success and stale=false, got outcome '$OUTCOME' and stale '$STALE'." >&2
+            exit 1
+          fi
+
+      - name: Change the build output without committing it
+        run: sed -i 's/built by the fixture/built by a new version/' tests/fixture/build.js
+
+      - name: Check a stale build
+        id: stale
+        uses: ./
+        continue-on-error: true
+        with:
+          mode: check
+          working-directory: tests/fixture
+          paths: dist
+
+      - name: Assert that the stale build failed
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.stale.outcome }}
+          STALE: ${{ steps.stale.outputs.stale }}
+        run: |
+          if [ "$OUTCOME" != "failure" ] || [ "$STALE" != "true" ]; then
+            echo "Expected failure and stale=true, got outcome '$OUTCOME' and stale '$STALE'." >&2
+            exit 1
+          fi
+
+      - name: Download the diff artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: npm-auto-build-stale-diff
+          path: ${{ runner.temp }}/stale-diff
+
+      - name: Assert that the artifact holds the diff of the stale file
+        shell: bash
+        env:
+          DIFF_DIR: ${{ runner.temp }}/stale-diff
+        run: |
+          grep -q '^+built by a new version$' "$DIFF_DIR/diff.patch"
+          test "$(cat "$DIFF_DIR/files.txt")" = "tests/fixture/dist/out.txt"

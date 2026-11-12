@@ -112,9 +112,9 @@ setup() {
     export INPUT_MODE=check
     export INPUT_BUILD_ONLY=true
     run bash "$SCRIPTS/validate-inputs.sh"
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 0 ]
     [[ "$output" == *"'build-only' is ignored because 'mode' is already 'check'"* ]] || false
-    [[ "$output" == *"issue #4"* ]] || false
+    [ "$(env_value NAB_MODE)" = "check" ]
 }
 
 @test "a v2 style workflow still builds: build-only, directory and build-dir together" {

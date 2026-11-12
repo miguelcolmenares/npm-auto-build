@@ -32,12 +32,12 @@ setup() {
     [ ! -s "$GITHUB_ENV" ]
 }
 
-@test "mode check fails at once and names issue 4" {
+@test "mode check is accepted and the mode output is written" {
     export INPUT_MODE=check
     run bash "$SCRIPTS/validate-inputs.sh"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::"* ]] || false
-    [[ "$output" == *"issue #4"* ]] || false
+    [ "$status" -eq 0 ]
+    [ "$(env_value NAB_MODE)" = "check" ]
+    [ "$(output_value mode)" = "check" ]
 }
 
 @test "mode pr fails at once and names issue 5" {
