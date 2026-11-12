@@ -1,0 +1,76 @@
+{
+  "site": {
+    "name": "npm-auto-build",
+    "description": "Automatically build and commit your npm project's build files to your repository",
+    "url": "https://miguelcolmenares.github.io",
+    "base": "/npm-auto-build/",
+    "repository": "https://github.com/miguelcolmenares/npm-auto-build",
+    "license": "MIT"
+  },
+  "hero": {
+    "title": "npm-auto-build",
+    "lede": "Automatically build and commit your npm project's build files to your repository",
+    "primary": {
+      "label": "Get started",
+      "href": "/docs/"
+    },
+    "secondary": {
+      "label": "View on GitHub",
+      "href": "https://github.com/miguelcolmenares/npm-auto-build"
+    }
+  },
+  "features": [],
+  "stats": [],
+  "nav": [],
+  "footer": {
+    "links": []
+  },
+  "theme": {
+    "default": "dark"
+  },
+  "sources": {
+    "root": "..",
+    "changelog": "../CHANGELOG.md"
+  },
+  "collections": [
+    {
+      "id": "docs",
+      "label": "Docs",
+      "dir": "../docs",
+      "groups": []
+    },
+    {
+      "id": "examples",
+      "label": "Examples",
+      "dir": "../examples",
+      "groups": []
+    }
+  ],
+  "deploy": {
+    "target": "github-pages",
+    "acknowledgePublicPages": false
+  },
+  "search": {
+    "enabled": true
+  },
+  "anonymize": {
+    "excludePaths": [],
+    "replace": {},
+    "denyPatterns": [],
+    "allow": []
+  },
+  "check": {},
+  "vars": {},
+  "llms": {
+    "enabled": true,
+    "optional": [],
+    "markdownPages": false
+  },
+  "editLink": {
+    "enabled": true,
+    "branch": "main"
+  },
+  "lastUpdated": {
+    "enabled": true
+  }
+}
