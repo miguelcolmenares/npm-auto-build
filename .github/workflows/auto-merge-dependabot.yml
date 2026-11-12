@@ -4,7 +4,8 @@ name: Auto-merge Dependabot PRs
 # AND the bumped npm versions have aged past a release-age cooldown. Runs on
 # `pull_request`; the job-level `permissions:` block elevates the GITHUB_TOKEN
 # for Dependabot's own PRs. Major updates are left for manual review, matching
-# the "Separate major updates for careful review" intent in .github/dependabot.yml.
+# the grouping in .github/dependabot.yml, which groups only minor and patch updates.
+# Docker image updates are never auto-merged, because no check here builds the image.
 #
 # Release-age cooldown (supply-chain guard): a freshly-published version is the
 # window in which a compromised or broken release is most likely still live.
@@ -60,9 +61,12 @@ jobs:
 
       - name: Enforce release-age cooldown
         id: cooldown
-        # Majors are never auto-merged, so their age is moot. Skip the check and
-        # leave `merge` unset, which the merge step already excludes on its own.
-        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        # Majors are never auto-merged, so their age is moot. Docker images are
+        # not npm packages and are never auto-merged. Skip the check and leave
+        # `merge` unset, which the approve and merge steps already exclude.
+        if: >-
+          steps.metadata.outputs.update-type != 'version-update:semver-major' &&
+          steps.metadata.outputs.package-ecosystem != 'docker'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           UPDATED: ${{ steps.metadata.outputs.updated-dependencies-json }}
