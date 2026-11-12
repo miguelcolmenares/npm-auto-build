@@ -11,6 +11,8 @@ This GitHub Action builds and commits `dist/` for you. A push runs your project'
 
 It is not a general CI tool. It does one job and tries to do it safely: your build runs without the write token, and only two small steps ever hold it.
 
+Documentation: <https://miguelcolmenares.com/npm-auto-build/>
+
 > **Version note.** This README describes v3. The tag `@v3` is available after the v3 release. Until then, use the full commit SHA of a commit on `main`, or `@main`. The examples below write `@v3`. The stable version today is `@v2`, and the [migration guide](docs/migration-v2-to-v3.md) lists what changed.
 
 ## Quick start

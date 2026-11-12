@@ -73,6 +73,8 @@ if: github.event_name == 'push'          # mode: commit for main
 - Use `@v3` references, and `actions/checkout@v7` with `persist-credentials: false`
 - Use only inputs that exist in `action.yml`, and never the v2 names (`github-token`, `directory`, `build-dir`, `build-only`, `create-pr`) except in the v2 "before" blocks of the migration guide, which carry the skip marker
 - Run `python3 tests/docs-examples.py --tables README.md --require-modes README.md` and the same script on the other docs after an edit, or `bats tests/docs-examples.bats`
+- `docs/reference.md` is generated from `action.yml`, and the pages show the files of `examples/` between a `<!-- example: examples/NAME.yml -->` marker and its fence. After a change to `action.yml` or to an example, run `python3 tests/docs-generated.py --write`. `python3 tests/docs-generated.py` and `bats tests/docs-site.bats` fail while they are out of date. Do not edit the generated parts by hand.
+- The docs site is in `site/`, built with docs-sitekit (`cd site && npm ci && npm run build`). The site reads `docs/`, `examples/` and `CHANGELOG.md`, and its menu and groups are in `site/sitekit.config.json`: a new page of `docs/` must be added to a group there, or the build fails. The `Docs` workflow builds it on pull requests and publishes it from `main`.
 
 **Marketplace Compliance:**
 - The Marketplace requires a public repository, a single `action.yml` or `action.yaml` at the root and a unique `name` ([requirements](https://docs.github.com/en/actions/how-tos/create-and-publish-actions/publish-in-github-marketplace)). Workflow files under `.github/workflows/` are allowed, and the repository has them for CI.
