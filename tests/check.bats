@@ -419,8 +419,9 @@ run_check() {
     run grep -nE 'GITHUB_TOKEN|GH_TOKEN|INPUT_TOKEN|INPUT_GITHUB_TOKEN|ACTIONS_RUNTIME_TOKEN|secrets\.' "$SCRIPTS/check.sh"
     [ "$status" -eq 1 ]
     local steps
-    steps=$(awk '/- name: Check the build output/ {on=1} /^branding:/ {on=0} on' "$ACTION")
-    # The awk range holds both check steps, so an empty range cannot pass.
+    steps=$(awk '/- name: Check the build output/ {on=1} /- name: Commit$/ {on=0} /^branding:/ {on=0} on' "$ACTION")
+    # The awk range holds both check steps and stops before the Commit step, which is the
+    # only one that gets the token. An empty range cannot pass.
     assert_has "$steps" "scripts/check.sh"
     assert_has "$steps" "upload-artifact"
     refute_grep -Eq 'inputs\.(github-)?token|github\.token|secrets\.|GITHUB_TOKEN|GH_TOKEN' <<<"$steps"
