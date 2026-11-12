@@ -670,9 +670,11 @@ EOF
     for dir in /usr/bin /bin; do
         for tool in "$dir"/*; do
             [ "${tool##*/}" = gh ] && continue
-            [ -e "$tools/${tool##*/}" ] || ln -s "$tool" "$tools/${tool##*/}"
+            # -f because /bin is a link to /usr/bin on most runners, and some links are broken.
+            ln -sf "$tool" "$tools/${tool##*/}" 2>/dev/null || true
         done
     done
+    [ ! -e "$tools/gh" ] || false
     run env PATH="$BATS_TEST_TMPDIR/spy-bin:$tools:$(dirname "$(command -v node)")" bash "$SCRIPTS/pr.sh"
     [ "$status" -eq 1 ]
     [[ "$output" == *"The GitHub CLI (gh) was not found on PATH"* ]] || return 1
