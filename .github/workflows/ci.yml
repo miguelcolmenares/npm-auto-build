@@ -330,6 +330,20 @@ jobs:
           working-directory: tests/fixtures/${{ matrix.fixture }}
           paths: dist
 
+      # A yarn or pnpm that the runner image ships must not shadow the corepack shim without
+      # anyone noticing: the manager that runs in the fixture has to be the pinned version.
+      - name: Check that the manager is the version of the packageManager field
+        shell: bash
+        working-directory: tests/fixtures/${{ matrix.fixture }}
+        run: |
+          field=$(node -p "require('./package.json').packageManager")
+          manager=${field%%@*}
+          expected=${field#*@}
+          expected=${expected%%+*}
+          actual=$("$manager" --version)
+          echo "$manager $actual (package.json asks for $expected)"
+          test "$actual" = "$expected"
+
       - name: Check that the build output exists
         shell: bash
         env:

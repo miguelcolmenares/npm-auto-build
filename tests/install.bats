@@ -53,7 +53,7 @@ install_log() {
     validate_and_load
     run bash "$SCRIPTS/install.sh"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"package-lock.json"* ]]
+    [[ "$output" == *"package-lock.json"* ]] || false
     [ -z "$(install_log)" ]
 }
 
@@ -87,7 +87,7 @@ install_log() {
     [ "$status" -eq 0 ]
     # There is no pnpm lockfile, so the install is not frozen, and the action warns.
     [ "$(install_log)" = "pnpm install --no-frozen-lockfile" ]
-    [[ "$output" == *"::warning::No pnpm-lock.yaml found"* ]]
+    [[ "$output" == *"::warning::No pnpm-lock.yaml found"* ]] || false
 }
 
 @test "install-command overrides detection and runs once" {

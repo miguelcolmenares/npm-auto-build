@@ -75,6 +75,12 @@ STUB
 pm_setup() {
     reset_inputs
     default_inputs
+    # A token or a registry setting in the shell of a developer must not change a result,
+    # for example the control tests that run without NODE_AUTH_TOKEN.
+    local name
+    for name in $(compgen -e | grep -E '^(NODE_AUTH_TOKEN|GITHUB_TOKEN|GH_TOKEN|ACTIONS_RUNTIME_TOKEN|ACTIONS_ID_TOKEN_REQUEST_TOKEN|NPM_CONFIG_|npm_config_|YARN_|PNPM_|COREPACK_)' || true); do
+        unset "$name"
+    done
     export HOME="$BATS_TEST_TMPDIR/home"
     mkdir -p "$HOME"
     export STUB_BIN="$BATS_TEST_TMPDIR/stub-bin"

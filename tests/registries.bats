@@ -265,6 +265,44 @@ export_github_tokens() {
     [[ "$output" != *"$REGISTRY_TOKEN"* ]] || false
 }
 
+@test "registry-url must not carry a query, a fragment or a credential setting" {
+    local url
+    for url in "https://registry.example.test/?_authToken=abc" \
+        "https://registry.example.test/?token=abc" \
+        "https://registry.example.test/#frag" \
+        "https://registry.example.test/npm/_AUTHTOKEN=abc" \
+        "https://registry.example.test/npm;password=abc" \
+        "https://registry.example.test/npm/apikey=abc"; do
+        export INPUT_REGISTRY_URL=$url
+        run bash "$SCRIPTS/validate-inputs.sh"
+        [ "$status" -eq 1 ]
+        [[ "$output" == *"::error::registry-url must not contain"* ]] || false
+        # The value may be a secret, so the message never repeats it.
+        [[ "$output" != *"abc"* ]] || false
+    done
+}
+
+@test "registry-url: a host or a path that only contains the word token is fine" {
+    export INPUT_REGISTRY_URL=https://tokens.example.test/npm/
+    run bash "$SCRIPTS/validate-inputs.sh"
+    [ "$status" -eq 0 ]
+}
+
+@test "registry-url over http warns that the token travels in clear text, except on this machine" {
+    export INPUT_REGISTRY_URL=http://registry.example.test:4873/
+    run bash "$SCRIPTS/validate-inputs.sh"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"::warning::registry-url uses http://"* ]] || false
+    [[ "$output" == *"clear text"* ]] || false
+    local url
+    for url in http://localhost:4873/ http://127.0.0.1:4873/ http://LOCALHOST/ https://registry.example.test/; do
+        export INPUT_REGISTRY_URL=$url
+        run bash "$SCRIPTS/validate-inputs.sh"
+        [ "$status" -eq 0 ]
+        [[ "$output" != *"::warning::"* ]] || false
+    done
+}
+
 @test "registry-url and scope must be a single line, and scope must look like a scope" {
     export INPUT_REGISTRY_URL=$'https://registry.example.test/\nmore'
     run bash "$SCRIPTS/validate-inputs.sh"

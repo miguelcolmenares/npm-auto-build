@@ -57,27 +57,32 @@ machine is never used.
 How the install step picks the manager, with `package-manager: auto`:
 
 1. The `packageManager` field of `package.json` (`npm@x`, `pnpm@x`, `yarn@x`). `bun` or any other name fails.
-2. The lockfile: `pnpm-lock.yaml`, `yarn.lock`, `package-lock.json` or `npm-shrinkwrap.json`.
+2. The lockfile: `pnpm-lock.yaml`, `yarn.lock`, `package-lock.json` or `npm-shrinkwrap.json`. A bun lockfile
+   (`bun.lock` or `bun.lockb`) with no other lockfile fails, next to another lockfile it is ignored.
 3. Otherwise npm, with `npm install` and a warning that the lockfile is missing.
 
 Lockfiles of two managers and no `packageManager` field is an error that names both files. An explicit
 `package-manager` input wins over everything, and the action still checks that the tool runs.
 
-| Manager | Install command |
-|---|---|
-| npm | `npm ci` (`npm install` without a lockfile) |
-| pnpm | `pnpm install --frozen-lockfile` (`--no-frozen-lockfile` without a lockfile) |
-| yarn classic (1.x) | `yarn install --frozen-lockfile` |
-| yarn berry (2+) | `yarn install --immutable` |
+| Manager | With a lockfile | Without a lockfile (a warning is printed) |
+|---|---|---|
+| npm | `npm ci` | `npm install` |
+| pnpm | `pnpm install --frozen-lockfile` | `pnpm install --no-frozen-lockfile` |
+| yarn classic (1.x) | `yarn install --frozen-lockfile` | `yarn install` |
+| yarn berry (2+) | `yarn install --immutable` | `yarn install --no-immutable` |
 
 Berry is detected from `packageManager: yarn@2` or newer, then a `.yarnrc.yml` file, then a `__metadata:` line
 in `yarn.lock`, then `yarn --version`. `ignore-scripts: true` adds `--ignore-scripts`, except for berry, which
 has no such flag: the action sets `YARN_ENABLE_SCRIPTS=false` for that one command. `install-command` replaces
-all of it, and the build still runs with the manager that detection picked (`pnpm run build`, `yarn run build`).
+all of it, `ignore-scripts` has no effect then (the action warns), and the build still runs with the manager that
+detection picked (`pnpm run build`, `yarn run build`). The build step checks that this manager is on `PATH`, so an
+`install-command` that does not install it fails with a message that names the manager.
 
 **Corepack.** `corepack enable` runs when the `packageManager` field names pnpm or yarn, or when pnpm or
-yarn is chosen and not installed. The action never runs `npm install -g`. Without corepack the step fails and
-says to install the manager in a step before the action, or to set `install-command`.
+yarn is chosen and not installed. The action never runs `npm install -g`. Without corepack, a manager that is
+already on `PATH` (for example from `pnpm/action-setup`) is used with a warning and still checked with `--version`.
+Without corepack and without the manager the step fails and says to install it in a step before the action, or
+to set `install-command`.
 
 **Private registries.** The action has no registry or token input of its own. Give the registry to
 `setup-node` through the two optional inputs, and give the token through the job environment:
@@ -90,7 +95,7 @@ jobs:
       NODE_AUTH_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
     steps:
       - uses: actions/checkout@v7
-      - uses: miguelcolmenares/npm-auto-build@v3
+      - uses: ./ # becomes miguelcolmenares/npm-auto-build@v3 after the v3 release
         with:
           mode: build
           registry-url: https://npm.pkg.github.com
@@ -106,7 +111,9 @@ The contract, and the tests that hold it:
 - The GitHub token variables (`GITHUB_TOKEN`, `GH_TOKEN`, `INPUT_TOKEN`, `INPUT_GITHUB_TOKEN`,
   `ACTIONS_RUNTIME_TOKEN`, `ACTIONS_ID_TOKEN_REQUEST_TOKEN`) never reach the install or the build.
 - The scripts never write an `.npmrc` or any other file with a credential.
-- `registry-url` is not a secret: a URL with a user name or password in it is refused.
+- `registry-url` is not a secret: a URL with a user name, a password, a query (`?`), a fragment (`#`) or a
+  setting such as `_authToken`, `token`, `password` or `apikey` in it is refused. An `http://` URL is
+  accepted with a warning that the token travels in clear text, unless the host is `localhost` or `127.0.0.1`.
 
 **Risk.** Do not put the GitHub token in `NODE_AUTH_TOKEN`. The action removes `GITHUB_TOKEN` from the
 install and the build, but it cannot hide a variable that you set on purpose, and the lifecycle scripts of
