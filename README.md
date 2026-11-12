@@ -4,6 +4,8 @@
 [![GitHub Marketplace](https://img.shields.io/badge/Marketplace-NPM%20Auto%20Build-blue.svg?colorA=24292e&colorB=0366d6&style=flat&longCache=true&logo=github)](https://github.com/marketplace/actions/npm-auto-build)
 [![GitHub](https://img.shields.io/github/license/miguelcolmenares/npm-auto-build)](LICENSE)
 
+> **v3 is in development on `main`.** It is a composite action that replaces the Docker image, and only `mode: build` works so far. The stable version is `@v2`, and this README describes it until the v3 documentation is written.
+
 🚀 **Automatically build and commit your npm project's build files to your repository**
 
 This GitHub Action runs your npm build script and automatically commits the generated build files to your repository. Perfect for keeping your source code clean while maintaining compiled assets for deployment or distribution.
