@@ -284,3 +284,40 @@ run_without_token() {
         -u ACTIONS_RUNTIME_TOKEN -u ACTIONS_ID_TOKEN_REQUEST_TOKEN \
         "$@"
 }
+
+# Branch names that mode pr never writes to, because they are protected or shared by
+# convention. The bot branch is a throwaway: the action force-pushes it on every run.
+# Case-insensitive, and the check is on the whole name or on a leading folder.
+nab_is_reserved_branch() {
+    local lower
+    lower=$(nab_lower "$1")
+    case "$lower" in
+        main | master | trunk | develop | development | dev | stable | production | prod | staging | gh-pages | head | release | releases | refs | origin)
+            return 0
+            ;;
+        release/* | releases/* | refs/* | origin/*) return 0 ;;
+    esac
+    return 1
+}
+
+# Check the branch name of mode pr: it must be a plain branch name that git accepts, and
+# it must not be a reserved or protected name. Fails with a message, prints nothing else.
+# The static part of the rules lives here, so validate-inputs.sh can fail before the build
+# and pr.sh can check again. pr.sh adds the checks that need the repository.
+nab_check_pr_branch_name() {
+    local name=$1
+    # The C locale, so that a range such as A-Z means ASCII letters and nothing else.
+    local LC_ALL=C
+    [ -n "$name" ] || die "The pull request branch is empty."
+    if ! [[ $name =~ ^[A-Za-z0-9._/-]+$ ]]; then
+        die "branch '$name' has characters that are not allowed. Use letters, digits and . _ - / only."
+    fi
+    case "$name" in
+        -* | /* | */ | *//* | *..* | .* | */.* | *. | *.lock | *.lock/*)
+            die "branch '$name' is not a valid branch name."
+            ;;
+    esac
+    if nab_is_reserved_branch "$name"; then
+        die "branch '$name' is a protected or shared branch name. Mode pr force-pushes its branch on every run and never writes to such a branch. Leave 'branch' empty, or use a name such as auto-build/main."
+    fi
+}

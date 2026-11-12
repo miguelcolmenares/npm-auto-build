@@ -31,6 +31,7 @@ On Ubuntu: `sudo apt-get install -y shellcheck bats`. The tests need Node.js and
 | `tests/registries.bats` | The private registry contract (see below), the `registry-url` and `scope` inputs, and a real `npm install` against a local registry that needs a token |
 | `tests/token.bats` | The token is not in the environment of install and build scripts |
 | `tests/check.bats` | Mode check in a throwaway git repository: fresh, modified, new, deleted and ignored files, line endings, the cap of 50 files, paths outside the repository, no token, the diff files, standalone use |
+| `tests/pr.bats` | Mode pr against a local bare repository used as `origin`, with a fake `gh`: the bot branch and the pull request are made, a second run updates the same pull request, the base branch is never written to, the branch name guards, the lease, the auto-merge toggle, invalid inputs, and every place the token must not be |
 | `tests/commit.bats` | Mode commit against a local bare repository used as `origin`: commit and push, no second commit, detached HEAD, refused paths, rebase and retry, protected branch, author and message, and every place the token must not be |
 | `tests/action.bats` | Rules about `action.yml` (composite, `shell: bash`, pinned actions, no expression inside `run:`) |
 
@@ -41,6 +42,12 @@ show that the token is in no argument list and reaches only `git fetch` and `git
 A `file://` remote ignores the `http.extraheader`, so the push itself proves nothing about
 the credential: the tests check how the header is built (`nab_build_auth_header`) and how it
 is passed (`nab_git_remote`) separately.
+
+`tests/pr.bats` works the same way, and adds a fake `gh` that logs its arguments and the
+`GH_TOKEN` it sees, and keeps the one pull request it "opened" in a state file. It also lets a
+test run a command just before a push (a racing run), to show that the lease refuses and that
+the run looks at the branch again. The git helpers that `commit.sh` and `pr.sh` share
+(`nab_git_remote`, `nab_build_auth_header` and the others) live in `scripts/git-lib.sh`.
 
 `tests/fixture/` is a tiny project without dependencies. Its `build` script writes
 `dist/out.txt`. `tests/helpers.bash` holds the shared helpers.
@@ -211,17 +218,96 @@ jobs:
   no branch to push to and the step fails with an error that says so. Use `mode: check` for
   pull requests.
 - **A protected branch.** `GITHUB_TOKEN` cannot push there. Pass a personal access token or a
-  GitHub App token that may bypass the protection as `token`, or use `mode: pr` (issue #5).
+  GitHub App token that may bypass the protection as `token`, or use `mode: pr`.
 - **The loop risk.** The default message ends with `[skip ci]`. A push with `GITHUB_TOKEN`
   does not start workflows, but a push with a personal access token or a GitHub App token
   does, so keep `[skip ci]` in a custom `commit-message`. The step prints a notice when it is
   missing.
 
-How the token is used: only the commit step receives it. It copies it into a shell
+How the token is used: only the commit step receives it (and the pr step in mode pr, see below). It copies it into a shell
 variable, masks it and its base64 form, and gives it to `git fetch` and `git push` only,
 as an `http.extraheader` in the `GIT_CONFIG_*` environment variables of that one command.
 It is never in a command line, a URL, `.git/config`, `git config --global` or a file.
 This needs git 2.31 or newer, which every GitHub-hosted runner has.
+
+## Mode pr in a workflow
+
+`mode: pr` is for a repository whose default branch does not accept direct pushes. It builds the
+project, commits the `paths` to a branch of its own and keeps **one** pull request up to date.
+The checked out branch is the base of the pull request.
+
+```yaml
+on:
+  push:
+    branches: [main]           # a branch push, not a tag and not a pull_request
+
+permissions:
+  contents: write              # the push of the bot branch
+  pull-requests: write         # gh pr create, edit and merge
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<sha> # vX.Y.Z
+        with:
+          persist-credentials: false
+      - uses: miguelcolmenares/npm-auto-build@<sha> # vX.Y.Z
+        id: build
+        with:
+          mode: pr
+          pr-labels: build
+          auto-merge: "false"
+```
+
+The repository setting that PR mode needs, with the default `GITHUB_TOKEN`: **Settings, Actions,
+General, "Allow GitHub Actions to create and approve pull requests"**. Without it `gh pr create`
+fails and the error says so. A personal access token or a GitHub App token as `token` does not need it.
+
+- **A pull request made with `GITHUB_TOKEN` starts no other workflows.** GitHub does this so
+  that actions cannot trigger each other without end. A required check on the base branch then
+  never runs on the bot's pull request, so the pull request cannot merge. Pass a personal access
+  token or a GitHub App token as `token` when checks are required. The default
+  `commit-message` has no `[skip ci]` in this mode for the same reason: GitHub skips the checks of
+  a pull request whose head commit has it, and the step prints a notice when a custom message has one.
+- **What it does, in order.** It stages the `paths` (also when `.gitignore` ignores them), makes one
+  commit on top of the base with `git commit-tree` (the base branch and the working tree do not move), and
+  force-pushes it to the bot branch with `--force-with-lease=<branch>:<tip it looked at>`. Then it
+  looks for an open pull request from that branch to the base. It opens one when there is none, and
+  it sets the title again and adds the labels when there is one. A second run never opens another pull
+  request. It sets `pull-request-url` and `pull-request-number`.
+- **No difference means no pull request.** When the build output is the same as on the base, the
+  step pushes nothing, opens nothing and leaves both outputs empty. A pull request that is already open
+  is left as it is. When the branch already holds this exact build on the current base, nothing is
+  pushed either.
+- **The bot branch.** The `branch` input, or `auto-build/<base branch>`. The branch is rewritten
+  on every run, so the action refuses to write to one that is not its own: the base branch, the
+  default branch of the remote, a reserved name (`main`, `master`, `develop`, `development`, `dev`, `trunk`,
+  `stable`, `production`, `prod`, `staging`, `gh-pages`, `HEAD`, `release`, `releases/*` and `release/*`, in any
+  case), and a branch that exists but whose tip commit does not have the line
+  `Generated-by: npm-auto-build`, which the action puts in every commit it makes. A bot branch cannot be
+  protected against force-pushes: exclude it from the protection rules. A checked out branch that
+  starts with `auto-build/` is refused too, it would make a pull request from a pull request branch.
+- **A lease, never a plain force.** If a person or another run moves the branch between the look and
+  the push, the lease makes git refuse. The step looks at the branch again and tries again, up to three
+  attempts, and fails when it is still moving. Use a `concurrency` group so runs go one at a time.
+- **`auto-merge: "true"`.** After the pull request is open, the step runs `gh pr merge --auto` with the
+  first merge method that the repository allows (squash, then merge, then rebase). The repository needs
+  "Allow auto-merge" and a protection rule with required checks on the base branch, or `gh` fails and the
+  step fails with a message that says so. The pull request stays open and the outputs are already set.
+  Auto-merge is never turned off by a run with `auto-merge: "false"`.
+- **Labels.** `pr-labels` is a comma separated list. The labels must exist in the repository, `gh`
+  does not create them. They are added on every run and never removed.
+
+How the token is used: the pr step is the only other step that receives it. As in mode commit, it is
+removed from the environment of the script and masked, and given to `git ls-remote`, `git fetch` and
+`git push` as an `http.extraheader` in the `GIT_CONFIG_*` variables of that one command. It goes to
+`gh` as `GH_TOKEN`, set for that one command only. It is in no command line, URL, git config file, output or
+file, and the install and build steps never see it.
 
 ## CI
 
@@ -232,5 +318,6 @@ This needs git 2.31 or newer, which every GitHub-hosted runner has.
 | `bats` | Runs `bats tests/` on Ubuntu |
 | `self-test-check` | Commits a fresh build of `tests/fixture` locally and runs the action with `mode: check`, which must pass. Then it changes the build output without committing it and runs the action again, which must fail with `stale=true`, and downloads the artifact `npm-auto-build-stale-diff` to check the diff |
 | `self-test-commit` | Runs `mode: commit` on Ubuntu on a throwaway branch, with `origin` pointed at a bare repository the job creates, so it never pushes to this repository. It checks the commit in that remote and `changed=true`, that a second run makes no commit (`changed=false`), and that a detached HEAD fails |
+| `self-test-pr` | Runs `mode: pr` on Ubuntu on a throwaway branch, with `origin` pointed at a bare repository the job creates and a stand-in `gh` first on `PATH`, so neither the push nor the pull request leaves the runner. It checks the bot branch in that remote (one commit on the base, with the output, the base unchanged), the outputs, that a second run opens no second pull request and pushes nothing, that auto-merge asks for `gh pr merge --auto`, and that the base branch, a protected name and a detached HEAD are refused. It does not open a real pull request: that needs a repository to open it in, so the `gh` calls are checked as a log and the real `gh` is only covered by its documented interface |
 | `self-test-pm` | Runs the action against `tests/fixtures/pnpm`, `yarn-classic` and `yarn-berry` on Ubuntu, and checks `dist/out.txt` of each |
-| `self-test` | Runs the action itself (`uses: ./`) against `tests/fixture` on Ubuntu, macOS and Windows in `mode: build`, and checks that `dist/out.txt` exists. It also checks that a mode that is not available yet (`pr`) fails |
+| `self-test` | Runs the action itself (`uses: ./`) against `tests/fixture` on Ubuntu, macOS and Windows in `mode: build`, and checks that `dist/out.txt` exists. It also checks that an unknown mode (`deploy`) fails |

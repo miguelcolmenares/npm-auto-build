@@ -44,12 +44,12 @@ setup() {
     [ "$(output_value mode)" = "check" ]
 }
 
-@test "mode pr fails at once and names issue 5" {
+@test "mode pr is accepted and the mode output is written" {
     export INPUT_MODE=pr
     run bash "$SCRIPTS/validate-inputs.sh"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"::error::"* ]] || false
-    [[ "$output" == *"issue #5"* ]] || false
+    [ "$status" -eq 0 ]
+    [ "$(env_value NAB_MODE)" = "pr" ]
+    [ "$(output_value mode)" = "pr" ]
 }
 
 @test "the default mode is commit" {

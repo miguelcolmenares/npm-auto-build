@@ -12,14 +12,6 @@ set -euo pipefail
 # shellcheck source=lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-# Mode gate: which issue implements each mode that is not available yet.
-mode_issue() {
-    case "$1" in
-        pr) printf '5' ;;
-        *) printf '' ;;
-    esac
-}
-
 # Functions below that return a value set a variable instead of printing it. A die
 # inside $(...) would lose its error message, because the substitution captures it.
 
@@ -93,6 +85,27 @@ normalize_paths() {
     PATHS_VALUE=${out%$'\n'}
 }
 
+# Validate the comma separated pr-labels. Sets LABELS_VALUE, comma separated, without blank
+# entries. A label is 1 to 50 characters (the limit of GitHub), and there are at most 20.
+normalize_labels() {
+    local raw=$1 entry out="" count=0 max_entries=20
+    local -a parts=()
+    IFS=, read -r -a parts <<<"$raw"
+    for entry in ${parts[@]+"${parts[@]}"}; do
+        entry=$(trim "$entry")
+        [ -n "$entry" ] || continue
+        if [ "${#entry}" -gt 50 ]; then
+            die "A 'pr-labels' entry is too long (${#entry} characters, GitHub accepts 50)."
+        fi
+        count=$((count + 1))
+        if [ "$count" -gt "$max_entries" ]; then
+            die "Input 'pr-labels' has more than $max_entries labels."
+        fi
+        out="${out:+$out,}$entry"
+    done
+    LABELS_VALUE=$out
+}
+
 main() {
     local mode=${INPUT_MODE:-commit}
     local workdir=${INPUT_WORKING_DIRECTORY:-.}
@@ -148,17 +161,14 @@ main() {
         fi
     fi
     if [ "${INPUT_GITHUB_TOKEN_SET:-false}" = "true" ]; then
-        log_warn "Input 'github-token' is a v2 name. Use 'token' instead. Its value still works: it is the token of the commit step and wins over 'token'."
+        log_warn "Input 'github-token' is a v2 name. Use 'token' instead. Its value still works: it is the token of the commit and pr steps and wins over 'token'."
     fi
 
-    # Mode gate. Build, check and commit work on this branch of the rewrite.
+    # Mode gate.
     case "$mode" in
-        build | check | commit) ;;
-        pr)
-            die "mode '$mode' is implemented by issue #$(mode_issue "$mode") and is not available yet. Use 'mode: commit', 'mode: check' or 'mode: build' for now, or pin the action to the v2 tag."
-            ;;
+        build | check | commit | pr) ;;
         *)
-            die "Unknown mode '$mode'. Use one of: commit, check, pr, build (pr is not available yet)."
+            die "Unknown mode '$mode'. Use one of: commit, check, pr, build."
             ;;
     esac
 
@@ -238,12 +248,28 @@ main() {
     ignore_scripts=$BOOL_VALUE
     parse_bool upload-diff "$upload_diff"
     parse_bool auto-merge "$auto_merge"
+    auto_merge=$BOOL_VALUE
     if [ "$ignore_scripts" = "true" ] && [ -n "$install_command" ]; then
         log_warn "Input 'ignore-scripts' has no effect when 'install-command' is set. Add the flag to your own command."
     fi
 
     normalize_paths "$paths"
     paths=$PATHS_VALUE
+
+    # Inputs of mode pr. The branch name and the title are checked here, so a mistake fails
+    # before the build. An empty branch is filled in by pr.sh, which knows the base branch.
+    local pr_branch=${INPUT_BRANCH:-} pr_title=${INPUT_PR_TITLE:-} pr_labels=""
+    if [ "$mode" = "pr" ]; then
+        pr_branch=$(trim "$pr_branch")
+        [ -z "$pr_branch" ] || nab_check_pr_branch_name "$pr_branch"
+        pr_title=$(trim "$pr_title")
+        [ -n "$pr_title" ] || pr_title="chore: update build output"
+        if [ "${#pr_title}" -gt 256 ]; then
+            die "pr-title is too long (${#pr_title} characters, GitHub accepts 256)."
+        fi
+        normalize_labels "${INPUT_PR_LABELS:-}"
+        pr_labels=$LABELS_VALUE
+    fi
 
     nab_write_env NAB_MODE "$mode"
     nab_write_env NAB_WORKDIR "$workdir"
@@ -252,6 +278,10 @@ main() {
     nab_write_env NAB_PACKAGE_MANAGER "$package_manager"
     nab_write_env NAB_PATHS "$paths"
     nab_write_env NAB_IGNORE_SCRIPTS "$ignore_scripts"
+    nab_write_env NAB_PR_BRANCH "$pr_branch"
+    nab_write_env NAB_PR_TITLE "$pr_title"
+    nab_write_env NAB_PR_LABELS "$pr_labels"
+    nab_write_env NAB_AUTO_MERGE "$auto_merge"
     nab_write_output node-version "$node_version"
     # The commit step reads this output in its `if:`, a composite step cannot use GITHUB_ENV there.
     nab_write_output mode "$mode"

@@ -87,16 +87,17 @@ setup() {
     run bash "$SCRIPTS/validate-inputs.sh"
     [ "$status" -eq 0 ]
     [[ "$output" == *"::warning::Input 'github-token' is a v2 name. Use 'token' instead."* ]] || false
-    [[ "$output" == *"it is the token of the commit step and wins over 'token'"* ]] || false
+    [[ "$output" == *"it is the token of the commit and pr steps and wins over 'token'"* ]] || false
 }
 
-@test "create-pr true maps to mode pr, which is not available yet" {
+@test "create-pr true maps to mode pr and warns" {
     export INPUT_MODE=commit
     export INPUT_CREATE_PR=true
     run bash "$SCRIPTS/validate-inputs.sh"
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 0 ]
     [[ "$output" == *"::warning::Input 'create-pr' is a v2 name. Use 'mode: pr' instead."* ]] || false
-    [[ "$output" == *"mode 'pr' is implemented by issue #5"* ]] || false
+    [ "$(env_value NAB_MODE)" = "pr" ]
+    [ "$(output_value mode)" = "pr" ]
 }
 
 @test "build-only wins over create-pr, like in v2" {
