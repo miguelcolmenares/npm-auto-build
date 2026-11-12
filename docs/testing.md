@@ -28,6 +28,7 @@ On Ubuntu: `sudo apt-get install -y shellcheck bats`. The tests need Node.js and
 | `tests/install.bats` | Install command per lockfile, with fake package managers on `PATH` |
 | `tests/build.bats` | The real build of the fixture, a missing path, no directory guessing, scripts that do not exist |
 | `tests/token.bats` | The token is not in the environment of install and build scripts |
+| `tests/check.bats` | Mode check in a throwaway git repository: fresh, modified, new, deleted and ignored files, line endings, the cap of 50 files, paths outside the repository, no token, the diff files, standalone use |
 | `tests/action.bats` | Rules about `action.yml` (composite, `shell: bash`, pinned actions, no expression inside `run:`) |
 
 `tests/fixture/` is a tiny project without dependencies. Its `build` script writes
@@ -51,6 +52,40 @@ bash scripts/build.sh
 cat tests/fixture/dist/out.txt
 ```
 
+## Use the check outside GitHub
+
+`scripts/check.sh` needs only bash and git (2.16 or newer), so any CI can use it as the
+gate. In Bitbucket Pipelines, after your own install and build steps:
+
+```yaml
+script:
+  - npm ci
+  - npm run build
+  - NAB_PATHS=dist NAB_COMMAND=build bash scripts/check.sh
+```
+
+The step fails when the committed build output is stale. Without `GITHUB_OUTPUT` the
+script prints `stale=true` or `stale=false`, and the error is printed as a plain
+`::error::` line. It reads these variables:
+
+| Variable | Meaning | Default |
+|---|---|---|
+| `NAB_PATHS` | Build output paths, one per line, relative to the working directory | `dist` |
+| `NAB_WORKDIR` | Working directory, relative to the current one | `.` |
+| `NAB_COMMAND` | The build script, only used in the message that says how to fix it | `build` |
+| `NAB_PACKAGE_MANAGER` | `auto`, `npm`, `yarn` or `pnpm`, only used in the same message | `auto` |
+| `RUNNER_TEMP` | Where `nab-check/diff.patch` and `nab-check/files.txt` are written | a `mktemp -d` directory, printed in the log |
+
+It does not replace the rest of the action: it does not install dependencies, does not
+run the build, and does not set up Node.js. Run those yourself before it. The checkout
+must have `HEAD` with the build output committed, and a shallow clone is enough. It
+does not upload the diff either, keep `diff.patch` with the artifacts feature of your CI.
+
+How it decides: a tracked file that differs from `HEAD`, a tracked file that is deleted,
+and a file that git does not track (new, or ignored by `.gitignore`) are stale. A
+difference of carriage returns at the end of lines alone is not. A path that resolves
+outside the repository is refused.
+
 ## CI
 
 | Job | What it does |
@@ -58,4 +93,5 @@ cat tests/fixture/dist/out.txt
 | `shellcheck` | Lints every tracked shell script |
 | `workflows` | Parses every workflow and `action.yml` |
 | `bats` | Runs `bats tests/` on Ubuntu |
+| `self-test-check` | Commits a fresh build of `tests/fixture` locally and runs the action with `mode: check`, which must pass. Then it changes the build output without committing it and runs the action again, which must fail with `stale=true`, and downloads the artifact `npm-auto-build-stale-diff` to check the diff |
 | `self-test` | Runs the action itself (`uses: ./`) against `tests/fixture` on Ubuntu, macOS and Windows, and checks that `dist/out.txt` exists. It also checks that a mode that is not available yet fails |
