@@ -1,568 +1,249 @@
-# NPM Auto Build GitHub Action
+# NPM Auto Build
 
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/miguelcolmenares/npm-auto-build)](https://github.com/miguelcolmenares/npm-auto-build/releases)
 [![GitHub Marketplace](https://img.shields.io/badge/Marketplace-NPM%20Auto%20Build-blue.svg?colorA=24292e&colorB=0366d6&style=flat&longCache=true&logo=github)](https://github.com/marketplace/actions/npm-auto-build)
-[![GitHub](https://img.shields.io/github/license/miguelcolmenares/npm-auto-build)](LICENSE)
+[![License](https://img.shields.io/github/license/miguelcolmenares/npm-auto-build?label=License)](LICENSE)
+[![CI](https://github.com/miguelcolmenares/npm-auto-build/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/miguelcolmenares/npm-auto-build/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/miguelcolmenares/npm-auto-build/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/miguelcolmenares/npm-auto-build/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/miguelcolmenares/npm-auto-build/badge)](https://scorecard.dev/viewer/?uri=github.com/miguelcolmenares/npm-auto-build)
 
-> **v3 is in development on `main`.** It is a composite action that replaces the Docker image, and the modes `commit`, `check`, `pr` and `build` all work (see `docs/testing.md` for the workflow each one needs). The stable version is `@v2`, and this README describes it until the v3 documentation is written.
+This GitHub Action builds and commits `dist/` for you. A push runs your project's build, and the action commits the build output to the repository, so nobody has to do it by hand.
 
-🚀 **Automatically build and commit your npm project's build files to your repository**
+It is not a general CI tool. It does one job and tries to do it safely: your build runs without the write token, and only two small steps ever hold it.
 
-This GitHub Action runs your npm build script and automatically commits the generated build files to your repository. Perfect for keeping your source code clean while maintaining compiled assets for deployment or distribution.
+> **Version note.** This README describes v3. The tag `@v3` is available after the v3 release. Until then, use the full commit SHA of a commit on `main`, or `@main`. The examples below write `@v3`. The stable version today is `@v2`, and the [migration guide](docs/migration-v2-to-v3.md) lists what changed.
 
-## ✨ Features
+## Quick start
 
-- 🔧 **Configurable build command** - Use any npm script (defaults to `build`)
-- 📁 **Smart build directory detection** - Automatically finds common build directories
-- 🤖 **Automatic Git handling** - Configures Git and commits changes with proper authentication
-- 📦 **Multiple package managers** - Works with npm and yarn
-- 🎯 **Zero configuration** - Works out of the box with sensible defaults
-- 🔍 **Detailed logging** - Clear feedback about the build process
+This workflow builds the project on every push to `main` and commits the changed `dist/` folder to `main`.
 
-## 🚀 Quick Start
-
-### Basic Usage (Build + Commit)
-
-```yml
-name: Auto Build and Deploy
+```yaml
+name: Build
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches: [main]
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    
-    # 🔑 Required permissions for committing build files
-    permissions:
-      contents: write  # Allows the action to commit and push changes
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      # Test build on PRs (no commit)
-      - name: Test Build (PR only)
-        if: github.event_name == 'pull_request'
-        uses: miguelcolmenares/npm-auto-build@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          build-only: true
-
-      # Build and commit on main branch  
-      - name: Build and Deploy (Main)
-        if: github.event_name == 'push'
-        uses: miguelcolmenares/npm-auto-build@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          build-dir: dist
-          commit-message: "chore: update build files [skip ci]"
-```
-
-### Simple One-Step Build
-
-```yml
-- name: Auto Build & Commit
-  uses: miguelcolmenares/npm-auto-build@v2
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-```
-
-### For Protected Branches
-
-```yml
-- name: Auto Build & Create PR
-  uses: miguelcolmenares/npm-auto-build@v2
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    create-pr: true  # Creates PR instead of direct push
-```
-
-### Build-Only Usage (Testing/CI)
-
-```yml
-name: Test Build
-on:
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  test-build:
-    runs-on: ubuntu-latest
-    
-    # 🧪 No special permissions needed for build-only mode
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Test Build
-        uses: miguelcolmenares/npm-auto-build@v2
-        with:
-          build-only: true  # Only build, don't commit
-```
-
-### Advanced Usage with Custom Settings
-
-```yml
-name: Advanced Auto Build
-on:
-  push:
-    branches: [ main ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    
-    permissions:
-      contents: write
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Advanced Auto Build
-        uses: miguelcolmenares/npm-auto-build@v2
-        with:
-          command: 'build:prod'
-          directory: './frontend'
-          build-dir: 'dist'
-          commit-message: 'chore: update production build'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          git-user-name: 'Build Bot'
-          git-user-email: 'bot@mycompany.com'
-          node-version: '18'
-```
-
-### Protected Branches Setup
-
-#### Option 1: Create Pull Request (Recommended)
-
-```yml
-name: Protected Branch Build with PR
-on:
-  push:
-    branches: [ main ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    
-    permissions:
-      contents: write
-      pull-requests: write
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Auto Build & Create PR
-        uses: miguelcolmenares/npm-auto-build@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          create-pr: true  # Creates PR instead of direct push
-```
-
-#### Option 2: Direct Push with PAT
-
-```yml
-name: Protected Branch Build with PAT
-on:
-  push:
-    branches: [ main ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    
-    permissions:
-      contents: write
-    
-    steps:
-      - name: Checkout with PAT
-        uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.PAT }}  # Personal Access Token for protected branches
-
-      - name: Auto Build
-        uses: miguelcolmenares/npm-auto-build@v2
-        with:
-          github-token: ${{ secrets.PAT }}  # Same PAT for pushing
-```
-
-## 📖 Inputs
-
-| Input | Description | Required | Default |
-|-------|-------------|----------|---------|
-| `command` | NPM script to run | No | `build` |
-| `directory` | Directory containing package.json | No | `.` |
-| `build-dir` | Directory where build files are generated | No | `dist` |
-| `commit-message` | Commit message for build changes | No | `chore: update build files` |
-| `github-token` | GitHub token for authentication | **Yes*** | - |
-| `git-user-name` | Git user name for commits | No | `github-actions[bot]` |
-| `git-user-email` | Git user email for commits | No | `github-actions[bot]@users.noreply.github.com` |
-| `node-version` | Node.js version to use | No | `18` |
-| `build-only` | Only build without committing changes | No | `false` |
-| `create-pr` | Create pull request instead of direct push | No | `false` |
-
-> **\*** Required only when committing changes. Not needed in `build-only` mode.
-
-## 🔐 Authentication & Permissions
-
-### Standard Workflow (Recommended)
-
-- Use `${{ secrets.GITHUB_TOKEN }}` - GitHub's built-in token
-- Add `permissions: contents: write` to your job
-- Works for most use cases on public repositories
-- **Checkout@v5**: Uses Node.js 24 runtime (requires Actions Runner v2.327.1+)
-
-```yml
-permissions:
-  contents: write  # Required for committing changes
-  actions: read    # Required for checkout action (default)
-```
-
-### Protected Branches
-
-- Create a Personal Access Token (PAT) with `repo` scope
-- Store as repository secret (e.g., `secrets.PAT`)
-- Use in both checkout and action steps
-
-### Build-Only Mode
-
-- No token or permissions required
-- Perfect for testing builds in CI/PR workflows  
-- Set `build-only: true` to skip Git operations
-- Only requires `contents: read` (default checkout permission)
-
-## 🎯 Use Cases
-
-### 1. **Frontend Deployment**
-Perfect for React, Vue, Angular, or any frontend framework that generates static files for deployment.
-
-### 2. **Library Distribution**
-Build and commit transpiled JavaScript for npm package distribution without including source build in your development workflow.
-
-### 3. **Documentation Sites**
-Generate and deploy documentation sites (like with VuePress, GitBook, etc.) automatically.
-
-### 4. **Static Site Generation**
-Build and commit static sites generated by tools like Gatsby, Next.js, Nuxt.js, etc.
-
-## 🔧 Real-World Examples
-
-### 1. Testing Build in PR (Build-Only Mode)
-
-```yml
-name: PR Build Test
-on:
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  test-build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      
-      - name: Test Build
-        uses: miguelcolmenares/npm-auto-build@v2
-        with:
-          build-only: true  # Only test, don't commit
-          command: 'build:prod'
-```
-
-### 2. Deploy to GitHub Pages
-
-```yml
-name: Deploy to GitHub Pages
-on:
-  push:
-    branches: [ main ]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pages: write
-    
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Build for GitHub Pages
-        uses: miguelcolmenares/npm-auto-build@v2
-        with:
-          command: 'build'
-          build-dir: 'dist'
-          commit-message: '🚀 Deploy to GitHub Pages'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-```
-
-### 3. Library Distribution (NPM Package)
-
-```yml
-name: Build Library
-on:
-  push:
-    tags: [ 'v*' ]
-
-jobs:
-  build-and-release:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Build TypeScript Library
-        uses: miguelcolmenares/npm-auto-build@v2
-        with:
-          command: 'build:lib'
-          build-dir: 'lib'
-          commit-message: 'chore: update compiled library'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Publish to NPM
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-```
-
-### 4. Monorepo Multi-Package Build
-
-```yml
-name: Monorepo Build
-on:
-  push:
-    branches: [ main ]
-
-jobs:
-  build-packages:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
-    strategy:
-      matrix:
-        package:
-          - { name: 'frontend', dir: './packages/web', build-dir: 'dist' }
-          - { name: 'admin', dir: './packages/admin', build-dir: 'build' }
-          - { name: 'mobile-web', dir: './packages/mobile', build-dir: 'dist' }
-    
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Build ${{ matrix.package.name }}
-        uses: miguelcolmenares/npm-auto-build@v2
-        with:
-          directory: ${{ matrix.package.dir }}
-          build-dir: ${{ matrix.package.build-dir }}
-          commit-message: 'chore: update ${{ matrix.package.name }} build'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-```
-
-### 5. Protected Branch with Custom Bot
-
-```yml
-name: Production Build
-on:
-  push:
-    branches: [ main ]
-
-jobs:
-  protected-build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.BOT_PAT }}  # Custom bot token
-      
-      - name: Production Build
-        uses: miguelcolmenares/npm-auto-build@v2
-        with:
-          command: 'build:production'
-          build-dir: 'dist'
-          commit-message: '🏗️ Production build update'
-          github-token: ${{ secrets.BOT_PAT }}
-          git-user-name: 'Production Bot'
-          git-user-email: 'bot@mycompany.com'
-```
-
-## 📁 More Examples
-
-Check out the [`examples/`](./examples/) directory for complete workflow files:
-
-- **[`complete-workflow.yml`](./examples/complete-workflow.yml)** - Build-only for PRs, build+commit for main
-- **[`monorepo.yml`](./examples/monorepo.yml)** - Multi-package monorepo setup  
-- **[`protected-branches.yml`](./examples/protected-branches.yml)** - Working with protected branches
-
-## ⚡ GitHub Actions Compatibility
-
-### Checkout Action v5
-
-This action is fully compatible with **actions/checkout@v5**, the latest version which includes:
-
-- **Node.js 24 Runtime**: Improved performance and security
-- **Minimum Runner Version**: Requires Actions Runner v2.327.1 or higher
-- **Same API**: All existing configurations work unchanged
-- **Enhanced Security**: Updated dependencies and security improvements
-
-```yml
-# ✅ Recommended - Latest version
-- uses: actions/checkout@v5
-  with:
-    token: ${{ secrets.GITHUB_TOKEN }}
-
-# ⚠️ Still supported but older
-- uses: actions/checkout@v4
-```
-
-> **Note**: If you encounter issues with checkout@v5, ensure your GitHub-hosted runners are up to date. Self-hosted runners need to be updated to v2.327.1 or higher.
-
-## 🛠️ How It Works
-
-1. **Checkout** - The action starts in your repository workspace
-2. **Dependency Installation** - Automatically detects and installs npm/yarn dependencies
-3. **Build Execution** - Runs your specified npm build command
-4. **Build Detection** - Finds the build directory (auto-detects common locations)
-5. **Git Configuration** - Sets up Git with provided credentials
-6. **Change Detection** - Checks if build files have changed
-7. **Commit & Push** - Commits and pushes changes if any are found
-
-## 🤔 Why Use This Action?
-
-### Problems It Solves:
-- ❌ **Large repositories** due to committed build files
-- ❌ **Merge conflicts** in build files
-- ❌ **Inconsistent builds** across different environments
-- ❌ **Forgotten builds** when making releases
-
-### Benefits:
-- ✅ **Clean repository** - Keep source and build separate
-- ✅ **Automated builds** - Never forget to build before release
-- ✅ **Consistent environment** - Builds always happen in CI
-- ✅ **Reduced conflicts** - No more build file merge conflicts
-
-## 📝 Requirements
-
-- Repository with `package.json`
-- npm build script defined in `package.json`
-- GitHub token with write permissions
-
-## 🐛 Troubleshooting
-
-
-### Build Directory in .gitignore
-
-**This is automatically handled!**
-
-If your build directory (e.g., `dist/`, `build/`) is in `.gitignore`, the action will automatically detect this and use `git add --force` to commit the files.
-
-**Common scenario:**
-```gitignore
-# .gitignore
-node_modules/
-dist/          # Build directory ignored locally
-coverage/
-```
-
-The action will:
-1. Detect that `dist/` is in `.gitignore`
-2. Automatically use `--force` flag when adding files
-3. Commit build files successfully
-
-**Why this works:** Developers often ignore build directories locally to keep their working tree clean, but CI/CD should commit official builds. This action handles both scenarios seamlessly.
-
-**No configuration needed** - the action automatically detects multiple `.gitignore` patterns:
-- `dist`
-- `dist/`
-- `dist/*`
-
-### Build Directory Not Found
-If you get "No build directory found", specify the correct `build-dir`:
-```yml
-with:
-  build-dir: 'public'  # or 'out', 'lib', etc.
-```
-
-### Permission Denied
-Make sure your token has the `contents:write` permission:
-```yml
 permissions:
   contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: miguelcolmenares/npm-auto-build@v3
 ```
 
-### No Changes to Commit
-This is normal if your build output hasn't changed. The action will exit successfully without making a commit.
+With no inputs the action installs Node.js 24, installs the dependencies, runs the `build` script of `package.json` and commits the `dist` folder. When the build output did not change, it makes no commit.
 
-## 🧪 Testing Locally
+## The four modes
 
-Run `npm test` for shellcheck and the bats tests. The Docker scripts (`test.sh` and the others) belong to v2 and live in the `v2` tag.
+The `mode` input picks what the action does. The default is `commit`.
 
-For more testing options, see [docs/testing.md](docs/testing.md).
+| Mode | What it does | Pushes | Needs the token |
+|---|---|---|---|
+| `commit` | Builds, then commits the build output to the checked out branch. | Yes, to that branch | Yes |
+| `check` | Builds, then fails when the committed build output is stale. | No | No |
+| `pr` | Builds, then commits the output to a branch of its own and keeps one pull request up to date. | Yes, to the bot branch only | Yes |
+| `build` | Builds and checks that the output exists. | No | No |
 
-## 🔄 Automatic Updates with Dependabot
+### Mode commit
 
-To keep your GitHub Actions automatically updated, add this to your repository:
+Use it when the branch accepts pushes from the workflow. This is the original behavior of the action, and the Quick start above is this mode. It needs a branch checkout. A tag push and a `pull_request` event leave HEAD detached, so the step fails there with a message that says so. The outputs `changed` and `commit-sha` tell what happened.
 
-```yml
-# .github/dependabot.yml
-version: 2
-updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
+### Mode check
+
+Use it on pull requests, to make sure that the build output in the branch is what the build makes. The job fails when a build file differs from `HEAD`, is deleted, or is new. It reads no token, so it also works for pull requests from forks. When the output is stale, the action sets the output `stale` to `true` and uploads the diff as an artifact.
+
+```yaml
+name: Check the build
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: miguelcolmenares/npm-auto-build@v3
+        with:
+          mode: check
 ```
 
-**What Dependabot will detect:**
-- ✅ **This action**: `miguelcolmenares/npm-auto-build@v2.0.x` → `@v2.x.x`
-- ✅ **Checkout updates**: `actions/checkout@v4` → `@v5` 
-- ✅ **Other action dependencies**
+### Mode pr
 
-### ⚠️ Important: Migration to v2.0.0
+Use it when the default branch does not accept direct pushes. The action commits the build output to its own branch, `auto-build/<checked out branch>` by default, and opens a pull request from it. A second run updates that same pull request and does not open another. It force-pushes only that branch, and refuses to write to a branch that it did not make.
 
-**v1.x versions contained critical Docker issues and are non-functional.**
+```yaml
+name: Build pull request
+on:
+  push:
+    branches: [main]
 
-#### For New Users
-- Use `@v2` (auto-updating) or `@v2.0.0` (specific version)
-- Use `actions/checkout@v5` (recommended)
+permissions:
+  contents: write
+  pull-requests: write
 
-#### Migrating from v1.x
-1. **Replace version**: `@v1` → `@v2` (or `@v2.0.0`)
-2. **Update checkout**: `@v4` → `@v5` (recommended)  
-3. **Test thoroughly**: v2.0.0 is a complete rewrite
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
 
-#### Self-hosted Runners
-If using checkout@v5, ensure your Actions Runner is v2.327.1 or higher.
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: miguelcolmenares/npm-auto-build@v3
+        id: build
+        with:
+          mode: pr
+          pr-title: "chore: update build output"
+      - name: Show the pull request
+        if: steps.build.outputs.pull-request-url != ''
+        env:
+          PR_URL: ${{ steps.build.outputs.pull-request-url }}
+        run: echo "$PR_URL"
+```
 
-## 🤝 Contributing
+With the default `GITHUB_TOKEN`, the repository setting "Allow GitHub Actions to create and approve pull requests" must be on. A pull request made with that token does not start other workflows, so required checks need a personal access token or a GitHub App token as `token`. The details are in [docs/testing.md](docs/testing.md#mode-pr-in-a-workflow).
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+### Mode build
 
-## 📄 License
+Use it to test that the project builds, with nothing pushed. The action installs, builds, and checks that every path of `paths` exists after the build. It needs no write permission and reads no token.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```yaml
+name: Build
+on:
+  pull_request:
 
-## 👨‍💻 Author
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: miguelcolmenares/npm-auto-build@v3
+        with:
+          mode: build
+          command: build:prod
+          paths: |
+            dist
+            types
+```
+
+## Permissions and checkout
+
+Mode `commit` and mode `pr` need two things in the workflow, with the default token:
+
+- `permissions: contents: write` for the push. Mode `pr` also needs `pull-requests: write`.
+- `persist-credentials: false` on `actions/checkout`. Without it, the checkout writes the token to `.git/config`, where the install and build scripts could read it. The action prints a warning when it finds such a header.
+
+Mode `check` and mode `build` need only `contents: read` and a checkout. A `concurrency` group is a good idea whenever several runs can push to the same branch, as in the examples above. For a protected branch, see the [recipes](docs/recipes.md#protected-branch).
+
+## The token
+
+The action runs code that it does not control: the install scripts of your dependencies and your build script. So the write token never reaches them. The validate, install and build steps do not receive the `token` input, and the scripts remove the known GitHub token variables from the environment of the package manager. The `token` input is read only in the Commit step (mode `commit`) and the Pull request step (mode `pr`), and mode `check` and mode `build` read no token at all.
+
+Those two steps give the token to `git fetch`, `git push` and, in mode `pr`, `gh`, for that one command. It goes through an `http.extraheader` in `GIT_CONFIG_*` variables and through `GH_TOKEN`. It is never in a command line, a URL, `.git/config` or a file, and it is masked in the log. A registry token that you set yourself, such as `NODE_AUTH_TOKEN`, is a different matter, see [the recipe](docs/recipes.md#private-registry). The full model is in [docs/threat-model.md](docs/threat-model.md).
+
+## Inputs
+
+| Input | Default | Description |
+|---|---|---|
+| `mode` | `commit` | What the action does: `commit`, `check`, `pr` or `build`. See the modes above. |
+| `working-directory` | `.` | Directory with the `package.json`, relative to the workspace. |
+| `command` | `build` | Name of the `package.json` script that builds the project. |
+| `install-command` | (empty) | Command that installs the dependencies. Empty means the action picks it for the package manager. When set, `ignore-scripts` has no effect. |
+| `package-manager` | `auto` | `auto`, `npm`, `yarn` or `pnpm`. Auto reads the `packageManager` field of `package.json`, then the lockfile. Bun is not supported. |
+| `node-version` | `24` | Node.js version to install, for example `24` or `22.x`. Ignored when `node-version-file` is set. |
+| `node-version-file` | (empty) | File with the Node.js version, for example `.nvmrc`, relative to the workspace. It wins over `node-version`. |
+| `registry-url` | (empty) | Registry URL for `actions/setup-node`, for example `https://npm.pkg.github.com`. Set `NODE_AUTH_TOKEN` in the `env:` of the job. Never put a credential in the URL. |
+| `scope` | (empty) | Scope of the registry, for example `@my-org`. Used only with `registry-url`. |
+| `paths` | `dist` | Build output paths, one per line, relative to `working-directory`. Every path must exist after the build. |
+| `token` | `${{ github.token }}` | GitHub token that pushes the build output and, in mode `pr`, opens the pull request. Read only by the commit and pr steps. |
+| `commit-message` | `chore: update build output [skip ci]` | Commit message (modes `commit` and `pr`). Keep `[skip ci]` in mode `commit`. In mode `pr` the default is used without it. |
+| `git-user-name` | `github-actions[bot]` | Git user name of the commit (modes `commit` and `pr`). |
+| `git-user-email` | `github-actions[bot]@users.noreply.github.com` | Git user email of the commit (modes `commit` and `pr`). |
+| `branch` | (empty) | Mode `pr`: the branch that holds the build output. Empty means `auto-build/<checked out branch>`. Only the action may write to it. |
+| `pr-title` | `chore: update build output` | Pull request title (mode `pr`). It is set again on every run. |
+| `pr-labels` | (empty) | Pull request labels, comma separated (mode `pr`). The labels must exist. They are added on every run and never removed. |
+| `auto-merge` | `false` | Turn on auto-merge for the pull request (mode `pr`). The repository needs "Allow auto-merge" and required checks. |
+| `ignore-scripts` | `false` | Install without lifecycle scripts. No effect when `install-command` is set. |
+| `upload-diff` | `true` | Upload the diff of a stale build as an artifact (mode `check`). |
+| `artifact-name` | `npm-auto-build-stale-diff` | Name of that artifact (mode `check`). Use a different name for each use of the action in one workflow run. |
+
+The v2 inputs `github-token`, `directory`, `build-dir`, `build-only` and `create-pr` still work for a short time and print a warning. They are in the [migration guide](docs/migration-v2-to-v3.md).
+
+## Outputs
+
+| Output | When it is set | Description |
+|---|---|---|
+| `changed` | Mode `commit` | `true` when the action pushed a commit with new build output, `false` when nothing changed. |
+| `stale` | Mode `check` | `true` when the committed build output is out of date, `false` when it is fresh. |
+| `commit-sha` | Mode `commit` | SHA of the pushed commit. Empty when nothing changed. |
+| `pull-request-url` | Mode `pr` | URL of the pull request. Empty when nothing changed. |
+| `pull-request-number` | Mode `pr` | Number of the pull request. Empty when nothing changed. |
+
+In the other modes an output is empty.
+
+## Package managers and registries
+
+The action works with npm, pnpm, yarn classic and yarn berry. With `package-manager: auto` it reads the `packageManager` field of `package.json`, then the lockfile, and it sets pnpm and yarn up with corepack. A private registry needs the inputs `registry-url` and `scope`, and a `NODE_AUTH_TOKEN` in the `env:` of the job. The [recipes](docs/recipes.md) show both, and [docs/testing.md](docs/testing.md#package-managers-and-private-registries) has the full contract.
+
+## More documentation
+
+- [Recipes](docs/recipes.md): protected branches, tag and pull request events, matrix and monorepo, private registry, pnpm and yarn, and the check outside GitHub.
+- [Migration guide from v2](docs/migration-v2-to-v3.md): renamed inputs, breaking changes, and how to stay on `@v2`.
+- [Examples](examples/README.md): complete workflow files.
+- [Testing guide](docs/testing.md): local checks, the bats tests, and what CI runs.
+- [Threat model](docs/threat-model.md) and [security policy](SECURITY.md).
+- [Changelog](CHANGELOG.md).
+
+## Requirements
+
+- A repository with a `package.json` that has the build script, and a checkout of it with `actions/checkout`.
+- Git 2.31 or newer for the commit and pr steps. Every GitHub-hosted runner has it. Mode `pr` also needs the `gh` command, which GitHub-hosted runners have.
+- The action is composite and runs on the host, not in a container. The repository's self-test runs mode `build` on Linux, macOS and Windows, and the other modes on Linux.
+
+## Troubleshooting
+
+| What you see | Why, and what to do |
+|---|---|
+| The commit step fails with a detached HEAD error. | The event was a tag push or a `pull_request`. Run mode `commit` on a branch push. Use mode `check` for pull requests. |
+| The build finished but some paths do not exist. | The action does not guess the build directory. Set `paths` to what your build writes. |
+| The push was rejected because the branch is protected. | Use a personal access token or a GitHub App token that may bypass the protection as `token`, or use mode `pr`. See the [recipes](docs/recipes.md#protected-branch). |
+| The push was refused. | Check `permissions: contents: write`, that `token` is valid, and `persist-credentials: false` on the checkout. |
+| The workflow runs again and again. | A push with a personal access token or a GitHub App token starts workflows. Keep `[skip ci]` in `commit-message` in mode `commit`. |
+| Nothing was committed. | The build output did not change. This is normal. |
+
+## Contributing
+
+Contributions are welcome, as an issue or a pull request. Run `npm test` before you open one. It runs shellcheck on every shell script and the bats tests. [docs/testing.md](docs/testing.md) has the details.
+
+## License
+
+This project is licensed under the MIT License, see the [LICENSE](LICENSE) file.
+
+## Author
 
 **Miguel Colmenares**
+
 - GitHub: [@miguelcolmenares](https://github.com/miguelcolmenares)
 - Email: me@miguelcolmenares.com
