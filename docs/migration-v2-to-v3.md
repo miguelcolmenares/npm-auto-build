@@ -56,7 +56,7 @@ jobs:
 
 ## Renamed inputs
 
-The v2 names are accepted as aliases for a short time. Each one prints a warning that names the new input. The aliases are kept for a short time only, so rename them now.
+The v2 names are accepted as aliases. Each one prints a warning that names the new input. The aliases are a bridge, not part of the v3 interface, and no release date is promised for their removal. Rename them now.
 
 | v2 input | v3 input | What the warning says | How the alias behaves |
 |---|---|---|---|

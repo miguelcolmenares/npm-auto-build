@@ -189,7 +189,7 @@ Those two steps give the token to `git fetch`, `git push` and, in mode `pr`, `gh
 | `upload-diff` | `true` | Upload the diff of a stale build as an artifact (mode `check`). |
 | `artifact-name` | `npm-auto-build-stale-diff` | Name of that artifact (mode `check`). Use a different name for each use of the action in one workflow run. |
 
-The v2 inputs `github-token`, `directory`, `build-dir`, `build-only` and `create-pr` still work for a short time and print a warning. They are in the [migration guide](docs/migration-v2-to-v3.md).
+The v2 inputs `github-token`, `directory`, `build-dir`, `build-only` and `create-pr` are still accepted as aliases and print a warning. They are not part of the v3 interface. The [migration guide](docs/migration-v2-to-v3.md) lists each one.
 
 ## Outputs
 
