@@ -154,7 +154,7 @@ main() {
     case "$mode" in
         build | check) ;;
         commit | pr)
-            die "mode '$mode' is implemented by issue #$(mode_issue "$mode") and is not available yet. Use 'mode: build' for now, or pin the action to the v2 tag."
+            die "mode '$mode' is implemented by issue #$(mode_issue "$mode") and is not available yet. Use 'mode: build' or 'mode: check' for now, or pin the action to the v2 tag."
             ;;
         *)
             die "Unknown mode '$mode'. Use one of: commit, check, pr, build (commit and pr are not available yet)."

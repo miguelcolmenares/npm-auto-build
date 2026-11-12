@@ -1,5 +1,5 @@
 name: "NPM Auto Build"
-description: "Builds your npm project and commits the build output to your repository. Build is the first mode available in v3, commit, check and pr follow."
+description: "Builds your npm project and commits the build output to your repository. Build and check are available in v3, commit and pr follow."
 
 author: "Miguel Colmenares <me@miguelcolmenares.com>"
 
@@ -39,7 +39,7 @@ inputs:
     required: false
     default: "dist"
   token:
-    description: "GitHub token (modes commit and pr, not read in build mode). Only the commit step reads it, install and build never see it."
+    description: "GitHub token (modes commit and pr, not read in build and check mode). Only the commit step reads it, install and build never see it."
     required: false
     default: ${{ github.token }}
   commit-message:
@@ -78,6 +78,10 @@ inputs:
     description: "Upload the diff of a stale build as an artifact (mode check)."
     required: false
     default: "true"
+  artifact-name:
+    description: "Name of the artifact with the diff (mode check). Set a different name for each use of the action in one workflow run, a duplicate name makes the upload fail."
+    required: false
+    default: "npm-auto-build-stale-diff"
 
   # v2 names, accepted for a short time, each with a warning that names the new input. The
   # value of github-token is NOT read yet, the commit step of issue #3 decides what to do with it.
@@ -106,19 +110,19 @@ inputs:
 # nothing, so it has nothing honest to report and leaves them empty.
 outputs:
   changed:
-    description: "true when the build output differs from the repository. Empty in build mode."
+    description: "true when the build output differs from the repository. Empty in build and check mode."
     value: ${{ steps.build.outputs.changed }}
   stale:
     description: "true when the committed build output is out of date, false when it is fresh (mode check). Empty in the other modes."
     value: ${{ steps.check.outputs.stale }}
   commit-sha:
-    description: "SHA of the commit with the build output. Empty in build mode."
+    description: "SHA of the commit with the build output. Empty in build and check mode."
     value: ${{ steps.build.outputs.commit-sha }}
   pull-request-url:
-    description: "URL of the pull request (mode pr). Empty in build mode."
+    description: "URL of the pull request (mode pr). Empty in build and check mode."
     value: ${{ steps.build.outputs.pull-request-url }}
   pull-request-number:
-    description: "Number of the pull request (mode pr). Empty in build mode."
+    description: "Number of the pull request (mode pr). Empty in build and check mode."
     value: ${{ steps.build.outputs.pull-request-number }}
 
 runs:
@@ -192,7 +196,7 @@ runs:
       if: always() && steps.validate.outputs.mode == 'check' && inputs.upload-diff == 'true' && steps.check.outputs.stale == 'true'
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        name: npm-auto-build-stale-diff
+        name: ${{ inputs.artifact-name }}
         path: ${{ runner.temp }}/nab-check
         if-no-files-found: ignore
         retention-days: 7

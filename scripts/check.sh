@@ -23,7 +23,8 @@
 #
 # Stale means one of: a tracked file that differs from HEAD, a tracked file that is deleted,
 # a file that git does not track (new, or ignored by .gitignore). A difference of carriage
-# returns at the end of lines alone is not stale. Needs git 2.16 or newer, for
+# returns at the end of lines alone is not stale. A staged new file is labelled `added`.
+# Known limit: a path with a tab or a line break in its name is not parsed correctly. Needs git 2.16 or newer, for
 # --ignore-cr-at-eol. Exit code: 0 fresh, 1 stale or any error.
 set -euo pipefail
 
@@ -82,6 +83,8 @@ resolve_under_root() {
 # spellings of one directory (git prints C:/x on Windows, bash prints /c/x) agree.
 inside_root() {
     local root_physical=$1 target=$2 physical
+    # A target that cannot be entered is not a directory to read, so it does not fail here.
+    # No file read happens for such a target, the caller checks that it exists.
     physical=$(cd -P -- "$target" 2>/dev/null && pwd -P) || return 0
     [ "$physical" = "$root_physical" ] && return 0
     case "$physical" in

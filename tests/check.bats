@@ -162,12 +162,13 @@ run_check() {
         git config core.autocrlf "$setting"
         printf 'built by the fixture\r\n' >dist/out.txt
         printf 'console.log(1);\r\n' >dist/app.js
+        : >"$GITHUB_OUTPUT"
         run bash "$SCRIPTS/check.sh"
         [ "$status" -eq 0 ] || {
             echo "autocrlf=$setting: $output" >&2
             return 1
         }
-        [ "$(output_value stale | tail -n 1)" = "false" ]
+        [ "$(output_value stale)" = "false" ]
     done
 }
 
@@ -499,7 +500,9 @@ run_check() {
     assert_has "$step" "if: always() && steps.validate.outputs.mode == 'check' && inputs.upload-diff == 'true' && steps.check.outputs.stale == 'true'"
     assert_has "$step" "uses: actions/upload-artifact@"
     grep -Eq 'uses: actions/upload-artifact@[0-9a-f]{40} # v[0-9]+\.[0-9]+\.[0-9]+$' <<<"$step"
-    assert_has "$step" "name: npm-auto-build-stale-diff"
+    assert_has "$step" "name: \${{ inputs.artifact-name }}"
+    grep -Eq '^  artifact-name:' "$ACTION"
+    grep -A3 '^  artifact-name:' "$ACTION" | grep -q 'default: "npm-auto-build-stale-diff"'
     assert_has "$step" "path: \${{ runner.temp }}/nab-check"
     assert_has "$step" "if-no-files-found: ignore"
     assert_has "$step" "retention-days: 7"
