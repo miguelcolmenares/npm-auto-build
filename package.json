@@ -1,6 +1,6 @@
 {
     "name": "npm-auto-build",
-    "version": "2.1.2",
+    "version": "3.0.0",
     "private": true,
     "description": "Automatically build and commit your npm project's build files to your repository",
     "repository": {
