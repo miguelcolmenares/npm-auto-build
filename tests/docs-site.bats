@@ -231,8 +231,8 @@ check_anchors() {
 check_security() {
     local root=$1 phrase
     for phrase in \
-        "Supported until v3.0.0 is published." \
-        "From that day v2 gets no patches, and the \`v2\` tag stays as it is." \
+        "Not supported since v3.0.0 was published." \
+        "v2 gets no patches, and the \`v2\` tag stays as it is." \
         "We acknowledge a report within 7 days." \
         "within 7 days when its severity is high or critical, and within 30 days for the others"; do
         grep -qF -- "$phrase" "$root/SECURITY.md" || { echo "SECURITY.md does not say: $phrase"; return 1; }
@@ -245,10 +245,10 @@ check_security() {
 }
 
 @test "mutation: a security policy that changes the v2 support is found" {
-    replace_first_line "$ROOT/SECURITY.md" "Supported until v3.0.0 is published." "| v2 (\`v2\` tag and \`v2.x.x\`) | Security fixes only, until the sunset date."
+    replace_first_line "$ROOT/SECURITY.md" "Not supported since v3.0.0 was published." "| v2 (\`v2\` tag and \`v2.x.x\`) | Security fixes only, until the sunset date."
     run check_security "$ROOT"
     [ "$status" -ne 0 ]
-    assert_contains "SECURITY.md does not say: Supported until v3.0.0 is published." || return 1
+    assert_contains "SECURITY.md does not say: Not supported since v3.0.0 was published." || return 1
 }
 
 @test "the security page links the threat model, the audit, the architecture and the policy" {

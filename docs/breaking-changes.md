@@ -12,8 +12,6 @@ v3 keeps the idea of v2: build the project and commit the build output for you. 
 2. Add `persist-credentials: false` to `actions/checkout`, and remove `token:` from the checkout.
 3. Rename the inputs in the table below, or leave them, they still work and print a warning.
 
-The tag `@v3` is available after the v3 release. Until then, use the full commit SHA of a commit on `main`, or `@main`.
-
 ## The changes
 
 | Change | In v2 | In v3 |
@@ -67,4 +65,4 @@ v2 keeps working through the `v2` tag, and the last release is `v2.1.2`. Pin one
 
 Use `@v2.1.2` instead of `@v2` when you want a build that never changes. v2 does not get the changes of this page. The README that describes v2 is in the `v2` tag.
 
-v2 is supported until v3.0.0 is published. From that day v2 gets no patches, and the `v2` tag stays as it is, so plan the move to v3. See the [security policy](../SECURITY.md).
+v2 is not supported since v3.0.0 was published. It gets no patches, and the `v2` tag stays as it is, so move to v3. See the [security policy](../SECURITY.md).

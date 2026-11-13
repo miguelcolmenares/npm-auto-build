@@ -2,8 +2,6 @@
 
 v3 keeps the idea of v2: build the project and commit the build output for you. It changes how the action runs, how it uses the token, and how it names its inputs. This page lists what to change, and how to stay on `@v2` if you are not ready.
 
-The tag `@v3` is available after the v3 release. Until then, use the full commit SHA of a commit on `main`, or `@main`.
-
 ## The short version
 
 For most workflows, three edits are enough:

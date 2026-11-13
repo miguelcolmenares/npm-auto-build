@@ -27,7 +27,7 @@ Welcome to the comprehensive documentation for NPM Auto Build Action.
 
 ## 🔧 Advanced Configuration
 
-The examples use `@v3`, which is available after the v3 release. Until then, use the full commit SHA of a commit on `main`, or `@main`. Complete workflows are in the [recipes](recipes.md) and in [`examples/`](../examples/README.md).
+The examples use `@v3`. Complete workflows are in the [recipes](recipes.md) and in [`examples/`](../examples/README.md).
 
 ### Custom Build Environments
 

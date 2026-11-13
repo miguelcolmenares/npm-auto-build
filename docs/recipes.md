@@ -2,7 +2,7 @@
 
 Short answers for the setups that come up most. Each workflow below is checked against `action.yml` by `tests/docs-examples.py`: the inputs exist, the modes are valid, and the permissions and the checkout match what the mode needs. The check is structural. It does not run the workflows.
 
-The action is written as `@v3`, which is available after the v3 release. Until then, use the full commit SHA of a commit on `main`, or `@main`.
+The action is written as `@v3`.
 
 - [Protected branch](#protected-branch)
 - [Tag and pull request events](#tag-and-pull-request-events)

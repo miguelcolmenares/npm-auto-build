@@ -150,7 +150,7 @@ bash scripts/release-check.sh 3.0.0   # prints the TODO lines, they are the list
 | `site/sitekit.config.json` | Remove "in development" from `site.version` and from the home badge. |
 | `SECURITY.md` | The v3 row says `Supported`, with no "Not released yet". The v2 row says that v2 support ended with the release of v3.0.0. |
 
-Then, in this pull request, delete the section "Draft of the 3.0.0 release summary" below, which is history once the release is out. Run the whole suite and the check again:
+Run the whole suite and the check again:
 
 ```bash
 bats tests/
@@ -220,21 +220,3 @@ Build your project and commit the output, so you do not commit dist/ by hand. Ca
 ```
 
 It has 121 characters. `scripts/release-check.sh` fails when it has more than 125, the number that the publish form is reported to enforce. The public GitHub docs state no limit for it, so the 125 is a safe bound and not a quoted rule. `.github/ACTION_DESCRIPTION.md` is the long text for the repository and is not the listing text.
-
-## Draft of the 3.0.0 release summary
-
-The notes of the GitHub release are the `[3.0.0]` section of the CHANGELOG, with no change. This is the summary at the top of that section, and the list of breaking changes under it. They are the same text as the intro of `[Unreleased]` today, so a change to one is a change to the other.
-
-```markdown
-v3.0.0 is a rewrite of the action. It is a composite action that runs on the runner, on Linux, macOS and Windows, with Node.js 24 by default. Its modes are `commit` (the default, the original behavior), `check`, `pr` and `build`. Your build runs without the write token. v2 keeps working through the `v2` tag. The v2 input names still work in v3, with a warning. Read the [migration guide](https://github.com/miguelcolmenares/npm-auto-build/blob/main/docs/migration-v2-to-v3.md) before you change `@v2` to `@v3`.
-
-Breaking changes from v2:
-- The default Node.js version is 24, and `node-version` has an effect.
-- The action does not guess the build directory. Set `paths`, which is `dist` by default.
-- A detached HEAD (a tag push or a `pull_request` event) is an error in mode `commit`.
-- The pull request branch is fixed (`auto-build/<branch>`), so a pull request is updated and not opened again.
-- The action runs on the host and not in an Alpine container.
-- `build-only` is `mode: build` and `create-pr` is `mode: pr`. The old names work for now, with a warning.
-- Two lockfiles of different package managers are an error, and a checkout that kept its credentials is refused in modes `commit` and `pr`.
-- v2 support ends with this release.
-```
