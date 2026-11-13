@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-11-12
+
 v3.0.0 is a rewrite of the action. It is a composite action that runs on the runner, on Linux, macOS and Windows, with Node.js 24 by default. Its modes are `commit` (the default, the original behavior), `check`, `pr` and `build`. Your build runs without the write token. v2 keeps working through the `v2` tag. The v2 input names still work in v3, with a warning. Read the [migration guide](https://github.com/miguelcolmenares/npm-auto-build/blob/main/docs/migration-v2-to-v3.md) before you change `@v2` to `@v3`.
 
 ### Breaking changes from v2
