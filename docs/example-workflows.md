@@ -10,7 +10,7 @@ Every file on this page is a file of the `examples/` directory of the repository
 
 That check is structural. Each input must exist, the mode must be valid, the checkout must have `persist-credentials: false` and the job must have the permissions that the mode needs. **It does not run the workflows.** The self-test jobs of the repository run the action, against the fixture projects and not against these files. The script names, directories and secret that the files use (`build:prod`, `build:lib`, `apps/*`, `packages/ui`, `BUILD_BOT_TOKEN`) are yours to define.
 
-The files write the action as `miguelcolmenares/npm-auto-build@v3`. The tag `@v3` is available after the v3 release. Until then, use the full commit SHA of a commit on `main`, or `@main`.
+The files write the action as `miguelcolmenares/npm-auto-build@v3`.
 
 ## Quick start, mode commit
 

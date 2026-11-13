@@ -6,12 +6,12 @@
     "base": "/npm-auto-build/",
     "repository": "https://github.com/miguelcolmenares/npm-auto-build",
     "license": "MIT",
-    "version": "3 (in development)",
+    "version": "3",
     "installCommand": "uses: miguelcolmenares/npm-auto-build@v3",
     "image": "/social.png"
   },
   "hero": {
-    "badge": "GitHub Action \u00b7 v3 in development \u00b7 four modes",
+    "badge": "GitHub Action \u00b7 v3 \u00b7 four modes",
     "title": "Build it, then commit the output.",
     "lede": "A GitHub Action that runs your project's build on a push and commits the build output for you, so nobody commits dist/ by hand. Your build runs without the write token.",
     "primary": {

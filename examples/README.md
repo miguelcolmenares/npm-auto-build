@@ -2,7 +2,7 @@
 
 Complete workflow files for NPM Auto Build v3. Copy one to `.github/workflows/` in your repository and change the build script and the paths.
 
-The files write the action as `miguelcolmenares/npm-auto-build@v3`. The tag `@v3` is available after the v3 release. Until then, use the full commit SHA of a commit on `main`, or `@main`.
+The files write the action as `miguelcolmenares/npm-auto-build@v3`.
 
 Every file here is checked against `action.yml` by `tests/docs-examples.py`, in the bats tests and in the CI job `docs-examples`. The check is structural: each input exists, the mode is valid, the checkout has `persist-credentials: false` and the job has the permissions that the mode needs. It does not run the workflows. The script names, directories and secret that the files use (`build:prod`, `build:lib`, `apps/*`, `packages/ui`, `BUILD_BOT_TOKEN`) are yours to define.
 

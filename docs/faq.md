@@ -74,7 +74,7 @@ Details: [Bitbucket Pipelines](./recipes.md#bitbucket-pipelines).
 
 ## Which tag do I use?
 
-The tag `@v3` is available after the v3 release. Until then, use the full commit SHA of a commit on `main`, or `@main`. For a workflow that has a write token, pin the action to a full commit SHA with the version in a comment, because a tag can move.
+For a workflow that has a write token, pin the action to a full commit SHA with the version in a comment, because a tag can move.
 
 Details: [Getting started](./getting-started.md), [Security](./security.md).
 

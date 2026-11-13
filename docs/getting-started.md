@@ -6,7 +6,7 @@ order: 1
 
 The smallest working workflow for `mode: commit`, what it needs, and what to expect in the first run.
 
-The tag `@v3` is available after the v3 release. Until then, use the full commit SHA of a commit on `main`, or `@main`. The examples write `@v3`.
+The examples write `@v3`.
 
 ## The workflow
 

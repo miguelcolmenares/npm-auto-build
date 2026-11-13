@@ -324,6 +324,8 @@ EOF
     [ -z "$tags" ] || {
         for doc in README.md examples/README.md "$REPO_ROOT"/docs/*.md; do
             doc=${doc#"$REPO_ROOT"/}
+            # docs/releasing.md quotes the sentence, because it is the procedure that removes it.
+            [ "$doc" != docs/releasing.md ] || continue
             if grep -q 'after the v3 release' "$REPO_ROOT/$doc"; then
                 echo "$doc still says that @v3 is not released, and the tag exists: $tags" >&2
                 return 1

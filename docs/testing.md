@@ -105,7 +105,7 @@ jobs:
       NODE_AUTH_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
     steps:
       - uses: actions/checkout@v7
-      - uses: ./ # becomes miguelcolmenares/npm-auto-build@v3 after the v3 release
+      - uses: ./ # is miguelcolmenares/npm-auto-build@v3 for users
         with:
           mode: build
           registry-url: https://npm.pkg.github.com

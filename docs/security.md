@@ -47,8 +47,8 @@ Do not open a public issue or pull request for a security problem. Say which ver
 
 | Version | Status |
 |---|---|
-| v3, development on `main` | Supported. Not released yet, so there is no tag to use. |
-| v2 (`v2` tag and `v2.x.x`) | Supported until v3.0.0 is published. From that day v2 gets no patches, and the `v2` tag stays as it is. Use v3, see the [migration guide](./migration-v2-to-v3.md). |
+| v3 (`v3` tag and `v3.x.x`) | Supported. |
+| v2 (`v2` tag and `v2.x.x`) | Not supported since v3.0.0 was published. v2 gets no patches, and the `v2` tag stays as it is. Use v3, see the [migration guide](./migration-v2-to-v3.md). |
 | v1 | Not supported. |
 
 ## Out of scope
