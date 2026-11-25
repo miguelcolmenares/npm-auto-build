@@ -11,9 +11,9 @@
     "build:tokens": "node scripts/build-tokens.mjs"
   },
   "dependencies": {
-    "@astrojs/markdown-remark": "^7.3.7",
-    "@astrojs/react": "^7.1.7",
-    "@astrojs/sitemap": "^3.7.4",
+    "@astrojs/markdown-remark": "^7.3.9",
+    "@astrojs/react": "^7.1.9",
+    "@astrojs/sitemap": "^3.7.5",
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
     "@tailwindcss/vite": "^4.3.5",
@@ -22,7 +22,7 @@
     "clsx": "^2.1.1",
     "cn": "^0.5.2",
     "gray-matter": "^4.0.3",
-    "lucide-react": "^1.72.0",
+    "lucide-react": "^1.75.0",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
