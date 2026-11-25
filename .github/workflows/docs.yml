@@ -54,7 +54,7 @@ jobs:
           host: "miguelcolmenares.com/npm-auto-build"
       # Installs the site, builds it, checks it, and uploads the Pages artifact.
       # Pinned by commit SHA like every action of this repository (the tag is v0.3.0).
-      - uses: miguelcolmenares/docs-sitekit@bf896fcbda7323bf1c4cce1376236b240c6e9054 # v0.3.0
+      - uses: miguelcolmenares/docs-sitekit@e61e59d84dcbdb927943e8dea8ebbb1f91d97e5b # v0.4.1
         with:
           version: 0.3.0
 
